@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>لوحة الإدارة</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header>
+    <h1 id="admin-title">لوحة الإدارة</h1>
+    <nav>
+      <a id="nav-home" href="/index.html"><img class="icon" src="/assets/icons/house.svg" style="vertical-align:middle;margin-inline-end:6px"/>الرئيسية</a>
+      <a id="nav-dashboard" href="/dashboard.html"><img class="icon" src="/assets/icons/speedometer2.svg" style="vertical-align:middle;margin-inline-end:6px"/>لوحة العرض</a>
+      <a id="nav-reports" href="/reports.html"><img class="icon" src="/assets/icons/file-earmark-text.svg" style="vertical-align:middle;margin-inline-end:6px"/>التقارير</a>
+      <a id="nav-students" href="/students.html"><img class="icon" src="/assets/icons/people.svg" style="vertical-align:middle;margin-inline-end:6px"/>الطلاب</a>
+    </nav>
+    <div class="controls"><button id="toggle-lang">EN/AR</button><button id="toggle-theme">الوضع الليلي/النهاري</button></div>
+  </header>
+  <div class="tab-bar" id="main-tabs">
+    <button class="tab-button active" data-tab="schedule">إعدادات الدوام</button>
+    <button class="tab-button" data-tab="device">جلب سجلات الجهاز</button>
+    <button class="tab-button" data-tab="backups">النسخ الاحتياطي</button>
+    <button class="tab-button" data-tab="fonts">إدارة الخطوط</button>
+  </div>
+  <main style="padding:16px">
+    <section class="tab-section active" data-tab="schedule">
+      <h2 id="sec-schedule">إعدادات الوقت الرسمي</h2>
+      <div>
+        <label id="lbl-schedule">ساعة الدخول الرسمية</label>
+        <input type="time" id="scheduleStart" value="07:00" />
+        <button id="saveSchedule">حفظ</button>
+        <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap; align-items:center">
+          <label id="lbl-absent-cutoff">حد الغياب</label>
+          <input type="time" id="absentCutoff" value="08:30" />
+        </div>
+      </div>
+    </section>
+    
+    
+    <section class="tab-section" data-tab="device">
+      <h2 id="sec-device">جلب سجلات الجهاز</h2>
+      <div>
+        <label id="lbl-ip">IP الجهاز</label>
+        <input type="text" id="zkIp" placeholder="192.168.1.201" />
+        <label id="lbl-port">Port</label>
+        <input type="number" id="zkPort" placeholder="4370" />
+        <label>CommKey</label>
+        <input type="text" id="zkCommKey" placeholder="اختياري" />
+        <label>Password</label>
+        <input type="text" id="zkPassword" placeholder="اختياري" />
+        <label>Use SDK</label>
+        <input type="checkbox" id="zkUseSdk" />
+        <label id="lbl-mock">وضع المحاكاة</label>
+        <input type="checkbox" id="zkMock" checked />
+        <button id="saveZk">حفظ الإعدادات</button>
+        <button id="testConnect">اختبار الاتصال</button>
+      </div>
+      <button id="ingest">جلب وتخزين الحضور</button>
+      <span id="ingestStatus"></span>
+
+      <!-- Manual attlog import section -->
+      <div style="margin-top:16px; padding:12px; border:1px solid var(--border); border-radius:8px; background: var(--card)">
+        <h3 id="sec-manual-import" style="margin-top:0">استيراد ملف الحضور يدوياً</h3>
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap">
+          <label id="lbl-manual-file">مسار الملف (attlog.dat)</label>
+          <input type="text" id="manualAttlogPath" placeholder="BRC7222260114_attlog.dat" value="BRC7222260114_attlog.dat" style="min-width:300px" />
+          <button id="manualImportBtn">استيراد</button>
+        </div>
+        <div id="manualImportNote" style="margin-top:6px; color: var(--muted)">إن لم تُحدد مساراً، سيتم استخدام الملف الموجود في الجذر باسم BRC7222260114_attlog.dat</div>
+        <span id="manualImportStatus" style="display:block; margin-top:6px"></span>
+      </div>
+    </section>
+    <section class="tab-section" data-tab="backups">
+      <h2 id="sec-backups">النسخ الاحتياطي والاسترجاع</h2>
+      <div style="margin-top:8px">
+        <button id="runBackup">تشغيل النسخ الاحتياطي</button>
+      </div>
+    </section>
+    <section class="tab-section" data-tab="backups">
+      <h2 id="sec-backups-list">النسخ المتوفرة والاسترجاع</h2>
+      <div id="backupsList">لا توجد نسخ بعد.</div>
+    </section>
+  </main>
+  <section class="tab-section" data-tab="fonts" style="padding:16px">
+    <h2>إدارة الخطوط (Arabic Fonts)</h2>
+    <div class="tab-bar" style="margin:8px 0">
+      <button class="subtab-button active" data-subtab="choose-font">اختيار الخط</button>
+      <button class="subtab-button" data-subtab="text-size">حجم النص</button>
+    </div>
+    <div class="subtab" data-subtab="choose-font" style="display:block">
+      <div style="margin:8px 0">
+        <input type="file" id="fontFile" accept=".ttf,.woff,.woff2" />
+        <button id="uploadFontBtn">رفع الخط</button>
+      </div>
+      <div id="fontsList">لا توجد خطوط بعد.</div>
+      <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap; align-items:center">
+        <label id="lbl-ui-font">خط الواجهة</label>
+        <select id="uiFontSelect"></select>
+        <label id="lbl-pdf-font">خط PDF</label>
+        <select id="pdfFontSelect"></select>
+      </div>
+    </div>
+    <div class="subtab" data-subtab="text-size" style="display:none">
+      <label>حجم النص</label>
+      <input type="range" id="textSizeRange" min="0.8" max="1.4" step="0.05" value="1" />
+      <div id="textPreview" style="margin-top:8px; padding:12px; border:1px solid var(--border); border-radius:8px; background: var(--card);">هذا نص معاينة يتغيّر حجمه حسب اختيارك.</div>
+    </div>
+  </section>
+  <script src="/admin.js"></script>
+  <footer class="footer-fixed">حقوق البرمجة: عوض لافي الزبيدي – مدرسة الفاروق بالمظيلف</footer>
+</body>
+</html>

@@ -1,0 +1,21 @@
+version: "3.9"
+services:
+  attendance:
+    build:
+      context: ./backend
+    container_name: student-attendance-server
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    ports:
+      - "3000:3000"
+    volumes:
+      # Persist database and exported reports
+      - ./backend/attendance.db:/app/attendance.db
+      - ./backend/reports/saved:/app/reports/saved
+    # If puppeteer needs extra flags in some environments, uncomment:
+    # environment:
+    #   - PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+    #   - PUPPETEER_DISABLE_HEADLESS_NEW=true
+    #   - CHROMIUM_FLAGS=--no-sandbox
+

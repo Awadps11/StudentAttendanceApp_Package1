@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>الطلاب</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header>
+    <h1>صفحة الطلاب</h1>
+    <nav>
+      <a href="/index.html"><img class="icon" src="/assets/icons/house.svg" style="vertical-align:middle;margin-inline-end:6px"/>الرئيسية</a>
+      <a href="/dashboard.html"><img class="icon" src="/assets/icons/speedometer2.svg" style="vertical-align:middle;margin-inline-end:6px"/>لوحة العرض</a>
+      <a href="/admin.html"><img class="icon" src="/assets/icons/gear.svg" style="vertical-align:middle;margin-inline-end:6px"/>لوحة الإدارة</a>
+      <a href="/reports.html"><img class="icon" src="/assets/icons/file-earmark-text.svg" style="vertical-align:middle;margin-inline-end:6px"/>التقارير</a>
+    </nav>
+    <div class="controls"><button id="toggle-theme">الوضع الليلي/النهاري</button></div>
+  </header>
+  <div class="tab-bar">
+    <button class="tab-button active" data-tab="list">قائمة الطلاب</button>
+    <button class="tab-button" data-tab="add">إضافة طالب</button>
+    <button class="tab-button" data-tab="import">استيراد الطلاب</button>
+  </div>
+  <main style="padding:16px">
+    <section class="tab-section active" data-tab="list">
+      <div style="margin:8px 0; display:flex; gap:8px; flex-wrap:wrap; align-items:center">
+        <label>بحث بالاسم</label>
+        <input type="text" id="searchName" placeholder="اكتب جزءًا من الاسم" />
+        <label>الصف</label>
+        <input type="text" id="searchClass" placeholder="مثال: الثالث متوسط" />
+        <button id="resetSearch">إعادة تعيين</button>
+      </div>
+      <table id="studentsTable" border="1" style="width:100%; border-collapse:collapse">
+        <thead>
+          <tr>
+            <th>الاسم</th>
+            <th>الصف</th>
+            <th>الشعبة</th>
+            <th>رقم الجهاز</th>
+            <th>إجراءات</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <span id="studentsStatus"></span>
+    </section>
+    <section class="tab-section" data-tab="add">
+      <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center">
+        <input type="text" id="newName" placeholder="الاسم" />
+        <input type="text" id="newNational" placeholder="الهوية" />
+        <input type="text" id="newGuardian" placeholder="هاتف ولي الأمر" />
+        <input type="text" id="newClass" placeholder="الصف" />
+        <input type="text" id="newSection" placeholder="الشعبة" />
+        <input type="text" id="newDeviceId" placeholder="رقم المستخدم بالجهاز (اختياري)" />
+        <button id="addStudent">إضافة طالب</button>
+      </div>
+    </section>
+    <section class="tab-section" data-tab="import">
+      <p>سيتم الاستيراد من ملف SampleStudents.xlsx أو SampleStudents.csv في الحزمة.</p>
+      <button id="importStudents">استيراد</button>
+      <button id="downloadTemplate">تنزيل قالب Excel مطابق للمخطط</button>
+      <span id="importStatus"></span>
+    </section>
+  </main>
+  <footer class="footer-fixed">حقوق البرمجة: عوض لافي الزبيدي – مدرسة الفاروق بالمظيلف</footer>
+  <script src="/students.js"></script>
+</body>
+</html>

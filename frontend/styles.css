@@ -1,0 +1,102 @@
+:root {
+  --bg: #f7f7f7;
+  --text: #222;
+  --card: #fff;
+  --present: #2ecc71;
+  --absent: #e74c3c;
+  --late: #f39c12;
+  --accent: #0d6efd;
+  --accent-text: #ffffff;
+  --border: #ddd;
+  --font-ui: 'Amiri','NotoNaskhArabic','Tajawal';
+  --text-scale: 1;
+}
+body.dark {
+  --bg: #181a1b;
+  --text: #fafafa;
+  --card: #232527;
+  --accent: #4c8dff;
+  --accent-text: #111;
+  --border: #444;
+  background: var(--bg);
+  background-image: radial-gradient(circle at 20% 20%, rgba(76,141,255,0.12), transparent 35%), linear-gradient(120deg, #0f1216, #181a1b);
+  background-attachment: fixed;
+}
+body {
+  font-family: var(--font-ui), system-ui, sans-serif;
+  font-size: calc(16px * var(--text-scale));
+  background: var(--bg);
+  background-image: radial-gradient(circle at 20% 20%, rgba(13,110,253,0.08), transparent 35%), linear-gradient(120deg, #f5f9ff, #f7f7f7);
+  background-attachment: fixed;
+  color: var(--text);
+  margin: 0;
+}
+.subtab { animation: fadeIn .18s ease-in-out; }
+header { display:flex; align-items:center; justify-content:space-between; padding:16px; }
+nav a { margin-inline-start: 12px; background: var(--accent); color: var(--accent-text); padding: 6px 10px; border-radius: 6px; text-decoration: none; }
+.controls button { margin-inline-start: 8px; }
+.cards { display:grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; padding: 16px; }
+.card { background: var(--card); border-radius: 8px; padding: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
+.badge { display:inline-block; padding: 4px 8px; border-radius: 999px; font-size: 12px; color:#fff; }
+.badge.present { background: var(--present); }
+.badge.absent { background: var(--absent); }
+.badge.late { background: var(--late); }
+.student-name { font-weight:600; margin: 8px 0; }
+small { color: #666; }
+/* Tabs */
+.tab-bar { display:flex; gap:8px; padding:8px 16px; border-bottom: 1px solid var(--border); }
+.tab-button { background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 999px; padding: 8px 14px; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.06); transition: transform .08s ease, box-shadow .2s ease; }
+.tab-button:hover { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,0,0,0.12); }
+.tab-button.active { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+.subtab-button { background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 999px; padding: 6px 12px; cursor: pointer; }
+.subtab-button.active { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+.tab-section { display:none; padding:16px; }
+.tab-section.active { display:block; }
+/* Section panels */
+.tab-section { background: rgba(255,255,255,0.6); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 6px 18px rgba(0,0,0,0.08); margin: 12px; }
+.tab-section h2 { margin-top: 0; font-weight: 700; letter-spacing: .2px; }
+.tab-section > div { margin-top: 8px; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+.tab-section { animation: fadeIn .18s ease-in-out; }
+/* Floating footer */
+.footer-fixed { position: fixed; bottom: 0; left: 0; right: 0; background: var(--card); color: var(--text); border-top: 1px solid var(--border); padding: 8px 16px; text-align: center; }
+/* Tables and controls styling */
+table { width: 100%; border-collapse: collapse; background: var(--card); }
+th, td { border: 1px solid var(--border); padding: 8px; text-align: start; }
+th { background: var(--accent); color: var(--accent-text); user-select: none; }
+tr:nth-child(even) { background: rgba(0,0,0,0.03); }
+
+button { background: var(--accent); color: var(--accent-text); border: none; border-radius: 6px; padding: 8px 12px; cursor: pointer; }
+button:hover { filter: brightness(0.95); }
+input, select { background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; }
+nav a img.icon { filter: invert(1); opacity: .95; }
+:root {
+  --bg: #f7f7f7;
+  --text: #222;
+  --card: #fff;
+  --present: #2ecc71;
+  --absent: #e74c3c;
+  --late: #f39c12;
+}
+/* Optional embedded Arabic font (used if available) */
+@font-face {
+  font-family: 'Amiri';
+  src: url('/assets/fonts/Amiri-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'NotoNaskhArabic';
+  src: url('/assets/fonts/NotoNaskhArabic-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Tajawal';
+  src: url('/assets/fonts/Tajawal-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}

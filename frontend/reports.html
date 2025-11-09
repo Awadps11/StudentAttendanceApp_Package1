@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>التقارير</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header>
+    <h1>صفحة التقارير</h1>
+    <nav>
+      <a href="/index.html"><img class="icon" src="/assets/icons/house.svg" style="vertical-align:middle;margin-inline-end:6px"/>الرئيسية</a>
+      <a href="/dashboard.html"><img class="icon" src="/assets/icons/speedometer2.svg" style="vertical-align:middle;margin-inline-end:6px"/>لوحة العرض</a>
+      <a href="/admin.html"><img class="icon" src="/assets/icons/gear.svg" style="vertical-align:middle;margin-inline-end:6px"/>لوحة الإدارة</a>
+      <a href="/students.html"><img class="icon" src="/assets/icons/people.svg" style="vertical-align:middle;margin-inline-end:6px"/>الطلاب</a>
+    </nav>
+    <div class="controls"><button id="toggle-theme">الوضع الليلي/النهاري</button></div>
+  </header>
+  <div class="tab-bar">
+    <button class="tab-button active" data-tab="student">تقرير الطالب حسب الفترة</button>
+    <button class="tab-button" data-tab="class">تقرير الصف حسب الفترة</button>
+  </div>
+  <main style="padding:16px">
+    <section class="tab-section active" data-tab="student">
+      <h2>تقرير طالب حسب الفترة</h2>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center">
+        <label>الطالب</label>
+        <select id="filterStudent"><option value="">اختر الطالب</option></select>
+        <label>السجل المدني</label>
+        <input type="text" id="studentCivil" placeholder="أدخل رقم السجل المدني" />
+        <label>من</label>
+        <input type="date" id="rangeFromDate" />
+        <label>إلى</label>
+        <input type="date" id="rangeToDate" />
+        <label>الصف</label>
+        <input type="text" id="rangeClass" placeholder="مثال: الثالث متوسط" />
+        <label>الشعبة</label>
+        <input type="text" id="rangeSection" placeholder="مثال: أ" />
+        <label>تصفية</label>
+        <input type="text" id="searchStudentRangeDate" placeholder="بحث بالتاريخ" />
+        <select id="studentRangeStatusFilter">
+          <option value="">كل الحالات</option>
+          <option value="present">حضور</option>
+          <option value="absent">غياب</option>
+          <option value="late">تأخر</option>
+        </select>
+      </div>
+      <!-- Cards for stats -->
+      <div id="studentStatsCards" style="display:grid; grid-template-columns: repeat(4,minmax(140px,1fr)); gap:8px; margin-top:10px">
+        <div class="card" id="cardTotalPresent" style="background:#e8f5e9; border:1px solid #c8e6c9; padding:10px; border-radius:8px"><div class="card-title">حضور</div><div class="card-value">0</div></div>
+        <div class="card" id="cardTotalAbsent" style="background:#ffebee; border:1px solid #ffcdd2; padding:10px; border-radius:8px"><div class="card-title">غياب</div><div class="card-value">0</div></div>
+        <div class="card" id="cardTotalLate" style="background:#fff8e1; border:1px solid #ffecb3; padding:10px; border-radius:8px"><div class="card-title">تأخر</div><div class="card-value">0</div></div>
+        <div class="card" id="cardTotalLateMinutes" style="background:#e3f2fd; border:1px solid #bbdefb; padding:10px; border-radius:8px"><div class="card-title">مجموع التأخر</div><div class="card-value">0 دقيقة</div></div>
+      </div>
+      <div style="margin-top:8px">
+        <button id="viewStudentRange">عرض تقرير الطالب</button>
+        <button id="exportStudentExcel">تصدير تقرير الطالب (Excel)</button>
+        <button id="exportStudentPdf">تصدير تقرير الطالب (PDF)</button>
+        <button id="exportStudentsFile">حفظ ملف الطلاب (Excel)</button>
+      </div>
+      <!-- Inline student edit form -->
+      <fieldset style="margin-top:12px; border:1px solid #ccc; border-radius:8px; padding:10px">
+        <legend>تعديل بيانات الطالب المختار</legend>
+        <div style="display:grid; grid-template-columns: repeat(6, minmax(120px,1fr)); gap:8px">
+          <div><label>الاسم</label><input type="text" id="editStudentName" /></div>
+          <div><label>السجل المدني</label><input type="text" id="editStudentNational" /></div>
+          <div><label>هاتف ولي الأمر</label><input type="text" id="editStudentPhone" /></div>
+          <div><label>الصف</label><input type="text" id="editStudentClass" /></div>
+          <div><label>الشعبة</label><input type="text" id="editStudentSection" /></div>
+          <div><label>رقم الطالب في الجهاز</label><input type="text" id="editStudentDeviceId" /></div>
+        </div>
+        <div style="margin-top:8px"><button id="saveStudentEdit">حفظ التعديل</button></div>
+        <div id="editStudentStatus" style="margin-top:6px; font-size:13px; color:#333"></div>
+      </fieldset>
+      <div id="reportsArea"></div>
+    </section>
+    <section class="tab-section" data-tab="class">
+      <h2>تقرير صف حسب الفترة</h2>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center">
+        <label>الصف</label>
+        <input type="text" id="filterClass" placeholder="مثال: الثالث متوسط" />
+        <label>الشعبة</label>
+        <input type="text" id="filterSection" placeholder="مثال: أ" />
+        <label>من</label>
+        <input type="date" id="classFromDate" />
+        <label>إلى</label>
+        <input type="date" id="classToDate" />
+        <label>بحث</label>
+        <input type="text" id="searchClassName" placeholder="بحث بالاسم" />
+        <label><input type="checkbox" id="classOnlyLate" /> المتأخرون فقط</label>
+      </div>
+      <div style="margin-top:8px">
+        <button id="viewClassRange">عرض تقرير الصف</button>
+        <button id="exportClassExcel">تصدير تقرير الصف (Excel)</button>
+        <button id="exportClassPdf">تصدير تقرير الصف (PDF)</button>
+      </div>
+      <div id="reportsArea2"></div>
+    </section>
+  </main>
+  <footer class="footer-fixed">حقوق البرمجة: عوض لافي الزبيدي – مدرسة الفاروق بالمظيلف</footer>
+  <script src="/reports.js"></script>
+</body>
+</html>

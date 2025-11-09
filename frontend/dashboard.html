@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>لوحة الحضور</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header>
+    <h1 id="dash-title">لوحة الحضور اليومية</h1>
+    <nav>
+      <a href="/index.html"><img class="icon" src="/assets/icons/house.svg" style="vertical-align:middle;margin-inline-end:6px"/>الرئيسية</a>
+      <a href="/admin.html"><img class="icon" src="/assets/icons/gear.svg" style="vertical-align:middle;margin-inline-end:6px"/>لوحة الإدارة</a>
+      <a href="/reports.html"><img class="icon" src="/assets/icons/file-earmark-text.svg" style="vertical-align:middle;margin-inline-end:6px"/>التقارير</a>
+      <a href="/students.html"><img class="icon" src="/assets/icons/people.svg" style="vertical-align:middle;margin-inline-end:6px"/>الطلاب</a>
+    </nav>
+    <div class="controls">
+      <button id="toggle-theme">الوضع الليلي/النهاري</button>
+      <button id="refresh">تحديث</button>
+      <button id="toggle-lang">EN/AR</button>
+    </div>
+  </header>
+  <main>
+    <section style="padding:8px; display:flex; gap:12px; align-items:center; flex-wrap:wrap">
+      <label id="lbl-class">الصف</label>
+      <select id="classFilter"><option id="opt-class-all" value="">الكل</option></select>
+      <label id="lbl-section">الشعبة</label>
+      <select id="sectionFilter"><option id="opt-section-all" value="">الكل</option></select>
+      <label id="lbl-status">الحالة</label>
+      <select id="statusFilter">
+        <option id="opt-status-all" value="">الكل</option>
+        <option id="opt-status-present" value="present">حضور</option>
+        <option id="opt-status-absent" value="absent">غياب</option>
+        <option id="opt-status-late" value="late">تأخر</option>
+      </select>
+    </section>
+    <section class="cards" id="cards"></section>
+  </main>
+  <script src="/main.js"></script>
+  <footer class="footer-fixed">حقوق البرمجة: عوض لافي الزبيدي – مدرسة الفاروق بالمظيلف</footer>
+</body>
+</html>

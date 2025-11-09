@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title id="home-title">نظام الحضور والغياب</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <style>
+    header nav { display:flex; gap:12px; }
+    header .controls { margin-top:8px; }
+  </style>
+  
+</head>
+<body>
+  <header>
+    <h1 id="home-heading">نظام إدارة الحضور والغياب</h1>
+    <nav>
+      <a id="nav-dashboard" href="/dashboard.html"><img class="icon" src="/assets/icons/speedometer2.svg" style="vertical-align:middle;margin-inline-end:6px"/>لوحة العرض</a>
+      <a id="nav-admin" href="/admin.html"><img class="icon" src="/assets/icons/gear.svg" style="vertical-align:middle;margin-inline-end:6px"/>لوحة الإدارة</a>
+      <a id="nav-reports" href="/reports.html"><img class="icon" src="/assets/icons/file-earmark-text.svg" style="vertical-align:middle;margin-inline-end:6px"/>التقارير</a>
+      <a id="nav-students" href="/students.html"><img class="icon" src="/assets/icons/people.svg" style="vertical-align:middle;margin-inline-end:6px"/>الطلاب</a>
+    </nav>
+    <div class="controls"><button id="toggle-lang">EN/AR</button></div>
+  </header>
+  <main>
+    <div class="tab-bar" id="home-tabs">
+      <button class="tab-button" data-tab="welcome">الرئيسية</button>
+      <button class="tab-button active" data-tab="today">عرض اليوم</button>
+    </div>
+    <section class="tab-section" data-tab="welcome">
+      <p id="welcome-text">مرحبًا بك! انتقل إلى لوحة العرض للاطلاع على حالة الطلاب.</p>
+    </section>
+    <section class="tab-section active" data-tab="today">
+      <h2>حالة الحضور اليوم</h2>
+      <div id="homeBadge" style="margin:8px 0"></div>
+      <div id="homeCounters" style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:10px"></div>
+      <div id="homeExportLink" style="margin:6px 0"></div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:8px">
+        <label>الصف</label>
+        <input type="text" id="homeClassFilter" placeholder="مثال: الثالث متوسط" />
+        <label>الشعبة</label>
+        <input type="text" id="homeSectionFilter" placeholder="مثال: أ" />
+        <label>المرحلة</label>
+        <select id="homeStageFilter">
+          <option value="">الكل</option>
+          <option value="middle">المتوسطة</option>
+          <option value="high">الثانوية</option>
+        </select>
+        <label>الحالة</label>
+        <select id="homeStatusFilter">
+          <option value="">الكل</option>
+          <option value="present">حضور</option>
+          <option value="absent">غياب</option>
+          <option value="late">تأخر</option>
+          <option value="not_yet">لم يصل بعد</option>
+        </select>
+        <button id="homeRefresh">تحديث</button>
+        <button id="homeExportPdf">تصدير PDF</button>
+      </div>
+      <div class="cards" id="homeCards"></div>
+    </section>
+  </main>
+  <footer class="footer-fixed">حقوق البرمجة: عوض لافي الزبيدي – مدرسة الفاروق بالمظيلف</footer>
+  <script>
+    const i18n = {
+      ar: {
+        homeTitle: 'نظام الحضور والغياب',
+        homeHeading: 'نظام إدارة الحضور والغياب',
+        navDashboard: 'لوحة العرض 📊',
+        navAdmin: 'لوحة الإدارة ⚙️',
+        navReports: 'التقارير 📑',
+        navStudents: 'الطلاب 👨‍🎓',
+        welcome: 'مرحبًا بك! انتقل إلى لوحة العرض للاطلاع على حالة الطلاب.'
+      },
+      en: {
+        homeTitle: 'Attendance System',
+        homeHeading: 'Student Attendance Management System',
+        navDashboard: 'Dashboard 📊',
+        navAdmin: 'Admin Panel ⚙️',
+        navReports: 'Reports 📑',
+        navStudents: 'Students 👨‍🎓',
+        welcome: 'Welcome! Go to Dashboard to view student status.'
+      }
+    };
+
+    function applyLang(lang) {
+      const t = i18n[lang] || i18n.ar;
+      document.documentElement.lang = lang === 'ar' ? 'ar' : 'en';
+      document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+      const setText = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+      setText('home-title', t.homeTitle);
+      setText('home-heading', t.homeHeading);
+      setText('nav-dashboard', t.navDashboard);
+      setText('nav-admin', t.navAdmin);
+      setText('nav-reports', t.navReports);
+      setText('nav-students', t.navStudents);
+      setText('welcome-text', t.welcome);
+    }
+
+    const savedLang = localStorage.getItem('lang') || 'ar';
+    applyLang(savedLang);
+    document.getElementById('toggle-lang')?.addEventListener('click', () => {
+      const next = (localStorage.getItem('lang') || 'ar') === 'ar' ? 'en' : 'ar';
+      localStorage.setItem('lang', next);
+      applyLang(next);
+    });
+    // Home tabs
+    document.querySelectorAll('#home-tabs .tab-button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#home-tabs .tab-button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const tab = btn.getAttribute('data-tab');
+        document.querySelectorAll('main .tab-section').forEach(sec => {
+          sec.style.display = (sec.getAttribute('data-tab') === tab) ? 'block' : 'none';
+        });
+      });
+    });
+    document.querySelectorAll('main .tab-section').forEach(sec => { if (!sec.classList.contains('active')) sec.style.display = 'none'; });
+  </script>
+  <script src="/home.js"></script>
+</body>
+</html>
