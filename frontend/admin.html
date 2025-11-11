@@ -34,6 +34,46 @@
           <label id="lbl-absent-cutoff">حد الغياب</label>
           <input type="time" id="absentCutoff" value="08:30" />
         </div>
+        <fieldset style="margin-top:12px; border:1px solid var(--border); border-radius:8px; padding:10px">
+          <legend>العطلة الأسبوعية</legend>
+          <div class="inline-group" id="weeklyHolidaysArea">
+            <label><input type="checkbox" data-weekday="7" /> الأحد</label>
+            <label><input type="checkbox" data-weekday="1" /> الإثنين</label>
+            <label><input type="checkbox" data-weekday="2" /> الثلاثاء</label>
+            <label><input type="checkbox" data-weekday="3" /> الأربعاء</label>
+            <label><input type="checkbox" data-weekday="4" /> الخميس</label>
+            <label><input type="checkbox" data-weekday="5" /> الجمعة</label>
+            <label><input type="checkbox" data-weekday="6" /> السبت</label>
+          </div>
+          <div style="margin-top:8px"><button id="saveWeeklyHolidays">حفظ العطلة الأسبوعية</button></div>
+        </fieldset>
+        <fieldset style="margin-top:12px; border:1px solid var(--border); border-radius:8px; padding:10px">
+          <legend>فترات الإجازات</legend>
+          <div id="vacationsList"></div>
+          <div class="inline-group" style="margin-top:8px">
+            <label><input type="checkbox" id="useHijriVac" /> <span id="lbl-vac-hijri">استخدام التاريخ الهجري</span></label>
+          </div>
+          <div id="vacHijriInputs" class="date-group" style="display:none; margin-top:8px">
+            <label>من</label>
+            <select id="vacFromHijriYear" class="compact-select"></select>
+            <select id="vacFromHijriMonth" class="compact-select"></select>
+            <select id="vacFromHijriDay" class="compact-select"></select>
+            <label>إلى</label>
+            <select id="vacToHijriYear" class="compact-select"></select>
+            <select id="vacToHijriMonth" class="compact-select"></select>
+            <select id="vacToHijriDay" class="compact-select"></select>
+          </div>
+          <div class="date-group" style="margin-top:8px">
+            <label>من</label><input type="date" id="vacFrom" />
+            <label>إلى</label><input type="date" id="vacTo" />
+            <button id="addVacation">إضافة فترة</button>
+          </div>
+          <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap; align-items:center">
+            <button id="saveVacations">حفظ الفترات</button>
+            <button id="applyVacations">تطبيق الإجازات وحذف السجلات في هذه الفترات</button>
+          </div>
+          <div id="vacStatus" style="margin-top:6px; font-size:13px"></div>
+        </fieldset>
       </div>
     </section>
     
@@ -55,7 +95,9 @@
         <input type="checkbox" id="zkMock" checked />
         <button id="saveZk">حفظ الإعدادات</button>
         <button id="testConnect">اختبار الاتصال</button>
+        <button id="diagnoseBtn">تشخيص الاتصال</button>
       </div>
+      <div id="diagnoseArea" style="margin-top:8px"></div>
       <button id="ingest">جلب وتخزين الحضور</button>
       <span id="ingestStatus"></span>
 
@@ -80,6 +122,27 @@
     <section class="tab-section" data-tab="backups">
       <h2 id="sec-backups-list">النسخ المتوفرة والاسترجاع</h2>
       <div id="backupsList">لا توجد نسخ بعد.</div>
+    </section>
+    <section class="tab-section" data-tab="backups">
+      <h2 id="sec-data-mgmt">إدارة البيانات الحساسة</h2>
+      <div style="margin-top:8px; padding:12px; border:1px solid var(--border); border-radius:8px; background: var(--card)">
+        <p style="margin-top:0;color:#b00020">تحذير: هذه العمليات لا يمكن التراجع عنها. يُرجى التأكيد قبل التنفيذ.</p>
+        <div class="form-row">
+          <div class="field">
+            <label id="lbl-wipe-all">حذف جميع البيانات (طلاب + سجلات + حركات)</label>
+            <button id="wipeAllBtn">حذف الكل</button>
+          </div>
+          <div class="field">
+            <label id="lbl-wipe-att">حذف سجلات الحضور والحركات</label>
+            <button id="wipeAttendanceBtn">حذف السجلات والحركات</button>
+          </div>
+          <div class="field">
+            <label id="lbl-wipe-stu">حذف الطلاب بالكامل</label>
+            <button id="wipeStudentsBtn">حذف الطلاب</button>
+          </div>
+        </div>
+        <div id="wipeStatus" style="margin-top:6px; font-size:13px"></div>
+      </div>
     </section>
   </main>
   <section class="tab-section" data-tab="fonts" style="padding:16px">

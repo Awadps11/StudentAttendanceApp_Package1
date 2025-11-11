@@ -44,7 +44,8 @@ router.get('/daily', async (req, res) => {
 router.get('/daily/export', async (req, res) => {
   try {
     const format = String(req.query.format || 'excel');
-    const renderer = String(req.query.renderer || 'pdfkit');
+    const engineEnv = String(process.env.PDF_ENGINE || '').toLowerCase();
+    const renderer = String(req.query.renderer || engineEnv || 'puppeteer');
     const dateStr = String(req.query.date || '');
     const cls = String(req.query.class || '');
     const section = String(req.query.section || '');
@@ -71,38 +72,52 @@ router.get('/daily/export', async (req, res) => {
     const rows = await all<any>(sql, params);
     const reportsDir = path.resolve(__dirname, '../../reports/saved');
     if (!fs.existsSync(reportsDir)) fs.mkdirSync(reportsDir, { recursive: true });
-    const baseName = `daily_${base.toISO().slice(0,10)}`;
+    const baseName = `daily_${base.toFormat('yyyy-LL-dd')}_${lang}`;
     if (format === 'pdf') {
-      // Browser-based robust RTL rendering
+      // Prefer browser-based rendering (Puppeteer) for robust RTL; fallback to PDFKit
       const fontsDir = path.resolve(__dirname, '../../assets/fonts');
       const cfg = await get<{ value: string }>(`SELECT value FROM settings WHERE key='pdfFont'`);
       const candidates = ['Amiri-Regular.ttf','NotoNaskhArabic-Regular.ttf','Cairo-Regular.ttf','Tajawal-Regular.ttf'];
       const chosen = cfg?.value && fs.existsSync(path.join(fontsDir, cfg.value)) ? cfg.value : (candidates.find(f => fs.existsSync(path.join(fontsDir, f))) || '');
       const fontUrl = chosen ? ('file:///' + path.join(fontsDir, chosen).replace(/\\/g,'/')) : '';
       const nowStr = DateTime.now().toFormat('yyyy-MM-dd hh:mm a');
-      const html = `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"/><style>
+      const isRtl = lang === 'ar';
+      const html = `<!doctype html><html lang="${lang}" ${isRtl ? 'dir="rtl"' : ''}><head><meta charset="utf-8"/><style>
         @page{ margin:12mm }
         body{ font-family: ${chosen ? '"Amiri","Tajawal","NotoNaskhArabic", sans-serif' : 'Tajawal, sans-serif'}; }
         ${fontUrl ? `@font-face{ font-family:'Amiri'; src:url('${fontUrl}') format('truetype'); font-weight:400; font-style:normal; }` : ''}
         h1{ text-align:center; margin:0 0 8px; }
-        .meta{ font-size:12px; margin-bottom:8px; }
+        .meta{ font-size:12px; margin-bottom:8px; ${isRtl ? 'text-align:right' : 'text-align:left'} }
         table{ width:100%; border-collapse:collapse; }
-        th,td{ border:1px solid #ccc; padding:6px; text-align:right; }
+        th,td{ border:1px solid #ccc; padding:6px; ${isRtl ? 'text-align:right' : 'text-align:left'} }
         th{ background:#eee; }
         .credit{ position:fixed; left:12mm; bottom:8mm; font-size:11px; }
       </style></head><body>
-        <div class="meta">تاريخ التصدير: ${nowStr}</div>
-        <h1>التقرير اليومي للحضور</h1>
-        <table><thead><tr><th>الاسم</th><th>الصف</th><th>الشعبة</th><th>الحالة</th><th>التأخر بالدقيقة</th></tr></thead><tbody>
-        ${rows.map(r => `<tr><td>${r.name||''}</td><td>${r.class||''}</td><td>${r.section||''}</td><td>${r.status||'غياب'}</td><td>${r.late_minutes||0}</td></tr>`).join('')}
+        <div class="meta">${isRtl ? 'تاريخ التصدير' : 'Exported'}: ${nowStr}</div>
+        <h1>${isRtl ? 'التقرير اليومي للحضور' : 'Daily Attendance Report'}</h1>
+        <table><thead><tr>${isRtl ? '<th>الاسم</th><th>الصف</th><th>الشعبة</th><th>الحالة</th><th>التأخر بالدقيقة</th>' : '<th>Name</th><th>Class</th><th>Section</th><th>Status</th><th>Late (min)</th>'}</tr></thead><tbody>
+        ${rows.map(r => `<tr><td>${r.name||''}</td><td>${r.class||''}</td><td>${r.section||''}</td><td>${isRtl ? (r.status||'غياب') : (r.status||'Absent')}</td><td>${r.late_minutes||0}</td></tr>`).join('')}
         </tbody></table>
-        <div class="credit">حقوق البرمجة: عوض لافي الزبيدي – مدرسة الفاروق بالمظيلف</div>
+        <div class="credit">${isRtl ? 'حقوق البرمجة: عوض لافي الزبيدي – مدرسة الفاروق بالمظيلف' : 'Programming Rights: Awad Lafi Al-Zubaidi – Al-Farouq School, Al-Muzaylif'}</div>
       </body></html>`;
       const file = path.join(reportsDir, baseName + '.pdf');
-      await exportHtmlPdf(html, file);
-      return res.json({ ok: true, file: `/saved-reports/${encodeURIComponent(baseName + '.pdf')}` });
-    } else if (format === 'pdf') {
-      const file = path.join(reportsDir, baseName + '.pdf');
+      if (renderer === 'puppeteer') {
+        try {
+          const headerTemplate = `<div style="font-size:10px; width:100%; ${isRtl ? 'text-align:right' : 'text-align:left'}; padding:4mm 6mm;">${isRtl ? 'التقرير اليومي للحضور' : 'Daily Attendance Report'}</div>`;
+          const footerTemplate = `<div style="font-size:10px; width:100%; ${isRtl ? 'text-align:left' : 'text-align:right'}; padding:4mm 6mm;">${isRtl ? 'صفحة' : 'Page'} <span class="pageNumber"></span> / <span class="totalPages"></span></div>`;
+          await exportHtmlPdf(html, file, {
+            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
+            headerTemplate,
+            footerTemplate,
+            margin: { top: '16mm', bottom: '16mm', left: '12mm', right: '12mm' },
+          });
+          return res.json({ ok: true, file: `/saved-reports/${encodeURIComponent(baseName + '.pdf')}` });
+        } catch (e) {
+          console.warn('Puppeteer PDF failed, falling back to PDFKit:', (e as Error).message);
+          // fall through to pdfkit
+        }
+      }
+      // PDFKit fallback or explicit selection
       const doc = new PDFDocument({ size: 'A4' });
       const stream = fs.createWriteStream(file);
       doc.pipe(stream);
@@ -120,7 +135,7 @@ router.get('/daily/export', async (req, res) => {
           }
         } catch {}
       }
-      const nowStr = DateTime.now().toFormat('yyyy-MM-dd HH:mm');
+      // Reuse the already computed nowStr for consistency
       if (lang === 'ar') {
         doc.fontSize(12); writeText(doc, `تاريخ التصدير: ${DateTime.now().toFormat('yyyy-MM-dd hh:mm a')}`, 'ar', { align: 'left' });
         doc.moveDown();
@@ -146,10 +161,12 @@ router.get('/daily/export', async (req, res) => {
       if (lang==='ar') { writeTextAt(doc, creditAr, 'ar', 40, (doc as any).page.height - 40, { align: 'left' }); }
       else { doc.text(creditEn, 40, (doc as any).page.height - 40, { align: 'left' }); }
       doc.end();
-      stream.on('finish', () => res.json({ ok: true, file }));
+      stream.on('finish', () => res.json({ ok: true, file: `/saved-reports/${encodeURIComponent(baseName + '.pdf')}` }));
     } else {
       const wb = new ExcelJS.Workbook();
       const ws = wb.addWorksheet('Daily');
+      // Freeze header row and enable autofilter
+      ws.views = [{ state: 'frozen', xSplit: 0, ySplit: 1 }];
       if (lang === 'ar') {
         ws.addRow(['الاسم','الصف','الشعبة','الحالة','التأخر بالدقيقة']);
         rows.forEach(r => ws.addRow([r.name, r.class, r.section, r.status || 'غياب', r.late_minutes || 0]));
@@ -161,9 +178,28 @@ router.get('/daily/export', async (req, res) => {
         ws.addRow([]);
         ws.addRow(['Programming Rights: Awad Lafi Al-Zubaidi – Al-Farouq School, Al-Muzaylif']);
       }
+      // Apply simple conditional formatting for Late column (E) > 0, if supported
+      try {
+        const lastDataRow = 1 + rows.length; // header + rows
+        (ws as any).addConditionalFormatting?.({
+          ref: `E2:E${lastDataRow}`,
+          rules: [{
+            type: 'cellIs',
+            operator: 'greaterThan',
+            formulae: ['0'],
+            style: {
+              fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFC7CE' } },
+              font: { color: { argb: 'FF9C0006' } },
+            },
+          }],
+        });
+      } catch {}
+      // Add totals row for Late minutes
+      const totalsRow = ws.addRow(['', '', '', lang==='ar' ? 'الإجمالي' : 'Total', { formula: `SUM(E2:E${1 + rows.length})`, result: rows.reduce((a, r) => a + (r.late_minutes || 0), 0) }]);
+      totalsRow.font = { bold: true } as any;
       const file = path.join(reportsDir, baseName + '.xlsx');
       await wb.xlsx.writeFile(file);
-      res.json({ ok: true, file });
+      res.json({ ok: true, file: `/saved-reports/${encodeURIComponent(baseName + '.xlsx')}` });
     }
   } catch (e:any) {
     res.status(500).json({ error: e.message });
@@ -191,16 +227,25 @@ router.get('/student', async (req, res) => {
     const rows = await all<any>(`SELECT DATE(timestamp) as day, status, late_minutes FROM attendance_logs WHERE student_id = ? AND timestamp BETWEEN ? AND ? ORDER BY timestamp ASC`, [studentId, fromIso, toIso]);
     const byDay = new Map<string, any>();
     (rows || []).forEach(r => { byDay.set(String(r.day), r); });
-    // Build full list for weekdays only (الأحد..الخميس) excluding الجمعة والسبت
+    // Load weekly holidays and vacations
+    let weekly: number[] = [];
+    let vacations: Array<{ from: string; to: string }> = [];
+    try {
+      const w = await get<{ value: string }>(`SELECT value FROM settings WHERE key='weeklyHolidays'`);
+      weekly = w?.value ? JSON.parse(w.value) : [];
+      const v = await get<{ value: string }>(`SELECT value FROM settings WHERE key='vacations'`);
+      vacations = v?.value ? JSON.parse(v.value) : [];
+    } catch {}
+    // Build full list excluding weekly holidays and vacations
     const full: any[] = [];
     let cursor = from.startOf('day');
     const end = to.endOf('day');
     while (cursor <= end) {
-      // Luxon weekday: Monday=1..Sunday=7. We exclude Friday=5 and Saturday=6.
       const isoDate = cursor.toISO().slice(0,10);
       const weekday = cursor.weekday; // 1=Mon .. 7=Sun
-      const isWeekend = (weekday === 5) || (weekday === 6); // Fri/Sat excluded
-      if (!isWeekend) {
+      const isWeeklyHoliday = weekly.includes(weekday);
+      const isVacationDay = (vacations||[]).some(r => isoDate >= String(r.from||'') && isoDate <= String(r.to||''));
+      if (!isWeeklyHoliday && !isVacationDay) {
         const found = byDay.get(isoDate);
         if (found && found.status === 'present') {
           full.push({ day: isoDate, status: 'present', late_minutes: found.late_minutes || 0 });
@@ -382,6 +427,15 @@ router.get('/class', async (req, res) => {
       ) a ON a.student_id = s.id
       ORDER BY s.name ASC`, params);
     const zone = process.env.TZ || 'local';
+    // Weekly holidays and vacations from settings
+    let weekly: number[] = [];
+    let vacations: Array<{ from: string; to: string }> = [];
+    try {
+      const w = await get<{ value: string }>(`SELECT value FROM settings WHERE key='weeklyHolidays'`);
+      weekly = w?.value ? JSON.parse(w.value) : [];
+      const v = await get<{ value: string }>(`SELECT value FROM settings WHERE key='vacations'`);
+      vacations = v?.value ? JSON.parse(v.value) : [];
+    } catch {}
     const summary = (rows as any[]).reduce((map, r) => {
       const key = r.id;
       if (!map[key]) map[key] = { id: r.id, name: r.name, class: r.class, section: r.section, present: 0, late: 0, total_late_minutes: 0 };
@@ -389,7 +443,10 @@ router.get('/class', async (req, res) => {
         if (r.timestamp) {
           try {
             const wd = DateTime.fromISO(String(r.timestamp), { zone }).weekday;
-            if (wd === 5 || wd === 6) return map;
+            const dateStr = String(r.timestamp).slice(0,10);
+            const isWeeklyHoliday = weekly.includes(wd);
+            const isVacationDay = (vacations||[]).some(vr => dateStr >= String(vr.from||'') && dateStr <= String(vr.to||''));
+            if (isWeeklyHoliday || isVacationDay) return map;
           } catch {}
         }
         map[key].present += 1;
@@ -432,6 +489,15 @@ router.get('/class/export', async (req, res) => {
       ) a ON a.student_id = s.id
       ORDER BY s.name ASC`, params);
     const zoneCR = process.env.TZ || 'local';
+    // Weekly holidays and vacations from settings
+    let weekly: number[] = [];
+    let vacations: Array<{ from: string; to: string }> = [];
+    try {
+      const w = await get<{ value: string }>(`SELECT value FROM settings WHERE key='weeklyHolidays'`);
+      weekly = w?.value ? JSON.parse(w.value) : [];
+      const v = await get<{ value: string }>(`SELECT value FROM settings WHERE key='vacations'`);
+      vacations = v?.value ? JSON.parse(v.value) : [];
+    } catch {}
     const summary = (rows as any[]).reduce((map, r) => {
       const key = r.id;
       if (!map[key]) map[key] = { id: r.id, name: r.name, class: r.class, section: r.section, present: 0, late: 0, total_late_minutes: 0 };
@@ -439,7 +505,10 @@ router.get('/class/export', async (req, res) => {
         if (r.timestamp) {
           try {
             const wd = DateTime.fromISO(String(r.timestamp), { zone: zoneCR }).weekday;
-            if (wd === 5 || wd === 6) return map;
+            const dateStr = String(r.timestamp).slice(0,10);
+            const isWeeklyHoliday = weekly.includes(wd);
+            const isVacationDay = (vacations||[]).some(vr => dateStr >= String(vr.from||'') && dateStr <= String(vr.to||''));
+            if (isWeeklyHoliday || isVacationDay) return map;
           } catch {}
         }
         map[key].present += 1;
@@ -560,13 +629,23 @@ router.get('/today/export', async (req, res) => {
     const statusFilter = String(req.query.status || '').trim();
     const lang = String(req.query.lang || 'ar');
     const now = DateTime.now().setZone(zone);
-    // If weekend (Fri/Sat), export a minimal notice PDF and return
-    if (now.weekday === 5 || now.weekday === 6) {
+    // If configured weekly holiday or vacation day, export a minimal notice PDF and return
+    let weekly: number[] = [];
+    let vacations: Array<{ from: string; to: string }> = [];
+    try {
+      const w = await get<{ value: string }>(`SELECT value FROM settings WHERE key='weeklyHolidays'`);
+      weekly = w?.value ? JSON.parse(w.value) : [];
+      const v = await get<{ value: string }>(`SELECT value FROM settings WHERE key='vacations'`);
+      vacations = v?.value ? JSON.parse(v.value) : [];
+    } catch {}
+    const todayStr = now.toISO().slice(0,10);
+    const isHoliday = weekly.includes(now.weekday) || (vacations||[]).some(r => todayStr >= String(r.from||'') && todayStr <= String(r.to||''));
+    if (isHoliday) {
       const reportsDir = path.resolve(__dirname, '../../reports/saved');
       if (!fs.existsSync(reportsDir)) fs.mkdirSync(reportsDir, { recursive: true });
       const dateLabel = `${now.day.toString().padStart(2,'0')}-${(now.month.toString().padStart(2,'0'))}-${now.year}`;
-      const html = `<!doctype html><html lang="${lang}" ${lang==='ar'?'dir="rtl"':''}><head><meta charset="utf-8"/><style>body{font-family:Tajawal, sans-serif; padding:20px;} h1{ text-align:center; } .meta{ text-align:center; color:#555; }</style></head><body><h1>${lang==='ar'?'اليوم عطلة نهاية الأسبوع':'Weekend Day'}</h1><div class="meta">${lang==='ar'?'لا يوجد عرض للحضور — يوم جمعة/سبت':'No attendance report — Friday/Saturday'}</div><div class="meta">${dateLabel}</div></body></html>`;
-      const fileName = `Weekend_${dateLabel}.pdf`;
+      const html = `<!doctype html><html lang="${lang}" ${lang==='ar'?'dir="rtl"':''}><head><meta charset="utf-8"/><style>body{font-family:Tajawal, sans-serif; padding:20px;} h1{ text-align:center; } .meta{ text-align:center; color:#555; }</style></head><body><h1>${lang==='ar'?'اليوم عطلة':'Holiday Day'}</h1><div class="meta">${lang==='ar'?'لا يوجد عرض للحضور — يوم عطلة رسمية/إجازة':'No attendance report — Official holiday/vacation day'}</div><div class="meta">${dateLabel}</div></body></html>`;
+      const fileName = `Holiday_${dateLabel}.pdf`;
       const file = path.join(reportsDir, fileName);
       await exportHtmlPdf(html, file);
       return res.json({ ok: true, file });

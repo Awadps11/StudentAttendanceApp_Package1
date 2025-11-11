@@ -42,13 +42,14 @@ async function refreshHome() {
     window._homeWeekend = !!r.weekend;
     renderHomeCards(window._homeRecords);
     renderHomeCounters(window._homeRecords);
+    populateHomeFilters(window._homeRecords);
     renderTopBadge(window._homeRecords, { weekend: window._homeWeekend });
   } catch {}
 }
 
 document.getElementById('homeRefresh')?.addEventListener('click', refreshHome);
-document.getElementById('homeClassFilter')?.addEventListener('input', () => renderHomeCards(window._homeRecords || []));
-document.getElementById('homeSectionFilter')?.addEventListener('input', () => renderHomeCards(window._homeRecords || []));
+document.getElementById('homeClassFilter')?.addEventListener('change', () => renderHomeCards(window._homeRecords || []));
+document.getElementById('homeSectionFilter')?.addEventListener('change', () => renderHomeCards(window._homeRecords || []));
 document.getElementById('homeStageFilter')?.addEventListener('change', () => renderHomeCards(window._homeRecords || []));
 document.getElementById('homeStatusFilter')?.addEventListener('change', () => renderHomeCards(window._homeRecords || []));
 
@@ -121,3 +122,35 @@ document.getElementById('homeExportPdf')?.addEventListener('click', async () => 
     cont.appendChild(a);
   } else { alert('تعذر التصدير'); }
 });
+
+function populateHomeFilters(records) {
+  try {
+    const clsSel = document.getElementById('homeClassFilter');
+    const secSel = document.getElementById('homeSectionFilter');
+    if (!clsSel || !secSel) return;
+    const prevClass = (clsSel.value || '').trim();
+    const prevSection = (secSel.value || '').trim();
+    // Collect distinct classes and sections from records
+    let classes = Array.from(new Set((records||[]).map(r => String(r.class||'').trim()).filter(Boolean)));
+    // Sort classes by custom Arabic order, then append any others alphabetically
+    const preferredOrder = [
+      'الأول متوسط','الثاني متوسط','الثالث متوسط',
+      'الأول ثانوي','الثاني ثانوي','الثالث ثانوي'
+    ];
+    const inOrder = preferredOrder.filter(c => classes.includes(c));
+    const others = classes.filter(c => !preferredOrder.includes(c)).sort((a,b) => a.localeCompare(b));
+    classes = [...inOrder, ...others];
+    const sections = Array.from(new Set((records||[]).map(r => String(r.section||'').trim()).filter(Boolean))).sort();
+    // Rebuild class options
+    clsSel.innerHTML = '';
+    const optAllC = document.createElement('option'); optAllC.value = ''; optAllC.textContent = 'الكل'; clsSel.appendChild(optAllC);
+    classes.forEach(cls => { const o = document.createElement('option'); o.value = cls; o.textContent = cls; clsSel.appendChild(o); });
+    // Rebuild section options
+    secSel.innerHTML = '';
+    const optAllS = document.createElement('option'); optAllS.value = ''; optAllS.textContent = 'الكل'; secSel.appendChild(optAllS);
+    sections.forEach(sec => { const o = document.createElement('option'); o.value = sec; o.textContent = sec; secSel.appendChild(o); });
+    // Restore previous selections if still available
+    if (prevClass && classes.includes(prevClass)) clsSel.value = prevClass; else clsSel.value = '';
+    if (prevSection && sections.includes(prevSection)) secSel.value = prevSection; else secSel.value = '';
+  } catch {}
+}

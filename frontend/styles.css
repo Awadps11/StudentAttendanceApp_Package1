@@ -78,6 +78,14 @@ nav a img.icon { filter: invert(1); opacity: .95; }
   --absent: #e74c3c;
   --late: #f39c12;
 }
+/* Form alignment helpers */
+.form-row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+.field { display:flex; flex-direction:column; gap:4px; min-width:160px; }
+.field label { font-size: 13px; color: #555; }
+.inline-group { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.compact-select { min-width: 180px; }
+.date-group { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.cards-grid { display:grid; grid-template-columns: repeat(4,minmax(140px,1fr)); gap:8px; }
 /* Optional embedded Arabic font (used if available) */
 @font-face {
   font-family: 'Amiri';

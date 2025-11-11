@@ -43,10 +43,10 @@ async function loadStudents() {
 function renderStudents() {
   const tbody = document.querySelector('#studentsTable tbody'); if (!tbody) return; tbody.innerHTML = '';
   const nameQ = (document.getElementById('searchName')?.value || '').trim().toLowerCase();
-  const classQ = (document.getElementById('searchClass')?.value || '').trim().toLowerCase();
+  const classSel = (document.getElementById('searchClass')?.value || '').trim();
   const filtered = (window._studentsData || []).filter(s => {
     const nameOk = !nameQ || String(s.name||'').toLowerCase().includes(nameQ);
-    const classOk = !classQ || String(s.class||'').toLowerCase().includes(classQ);
+    const classOk = !classSel || String(s.class||'') === classSel;
     return nameOk && classOk;
   });
   filtered.forEach(s => {
@@ -65,7 +65,7 @@ function renderStudents() {
 }
 
 document.getElementById('searchName')?.addEventListener('input', renderStudents);
-document.getElementById('searchClass')?.addEventListener('input', renderStudents);
+document.getElementById('searchClass')?.addEventListener('change', renderStudents);
 document.getElementById('resetSearch')?.addEventListener('click', () => { const n = document.getElementById('searchName'); if (n) n.value = ''; const c = document.getElementById('searchClass'); if (c) c.value = ''; renderStudents(); });
 
 document.getElementById('addStudent')?.addEventListener('click', async () => {
@@ -109,3 +109,25 @@ async function deleteStudent(s) {
 }
 
 (async function init(){ await loadStudents(); })();
+
+async function populateStudentClassSectionSelects() {
+  try {
+    const r = await getJSON('/api/students');
+    const students = r.students || [];
+    const preferredOrder = [
+      'الأول متوسط','الثاني متوسط','الثالث متوسط',
+      'الأول ثانوي','الثاني ثانوي','الثالث ثانوي'
+    ];
+    const uniqClasses = Array.from(new Set(students.map(s => String(s.class||'').trim()).filter(Boolean)));
+    const inOrder = preferredOrder.filter(c => uniqClasses.includes(c));
+    const others = uniqClasses.filter(c => !preferredOrder.includes(c)).sort((a,b)=>a.localeCompare(b));
+    const classes = [...inOrder, ...others];
+    const sections = Array.from(new Set(students.map(s => String(s.section||'').trim()).filter(Boolean))).sort((a,b)=>a.localeCompare(b));
+    const fill = (id, arr, defText) => { const el = document.getElementById(id); if (!el) return; const prev = el.value || ''; el.innerHTML = ''; const d = document.createElement('option'); d.value=''; d.textContent = defText; el.appendChild(d); arr.forEach(v => { const o = document.createElement('option'); o.value = v; o.textContent = v; el.appendChild(o); }); if (prev && arr.includes(prev)) el.value = prev; };
+    fill('searchClass', classes, 'الكل');
+    fill('newClass', classes, 'اختر الصف');
+    fill('newSection', sections, 'اختر الشعبة');
+  } catch {}
+}
+
+(async function initPopulate(){ await populateStudentClassSectionSelects(); })();

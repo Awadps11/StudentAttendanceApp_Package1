@@ -70,6 +70,7 @@ if not exist "%BACKEND%\.env" (
   if exist "%BACKEND%\.env.example" (
     copy /Y "%BACKEND%\.env.example" "%BACKEND%\.env" >nul
     echo [+] Created .env from .env.example
+    echo PDF_ENGINE=pdfkit>>"%BACKEND%\.env"
   ) else (
     echo [!] .env.example not found under backend. Creating a basic .env...
     >"%BACKEND%\.env" echo PORT=3000
@@ -79,12 +80,14 @@ if not exist "%BACKEND%\.env" (
     >>"%BACKEND%\.env" echo ZK_MOCK=true
     >>"%BACKEND%\.env" echo ZK_PASSWORD=
     >>"%BACKEND%\.env" echo ZK_COMMKEY=
+    >>"%BACKEND%\.env" echo PDF_ENGINE=pdfkit
   )
 )
 
 REM Install dependencies (backend)
 echo [*] Installing backend dependencies (if needed)...
 pushd "%BACKEND%" >nul
+set PUPPETEER_SKIP_DOWNLOAD=1
 npm install --no-audit --no-fund
 if errorlevel 1 (
   echo [!] npm install failed. Please check your internet connection or proxy settings.
@@ -105,9 +108,7 @@ if defined PID_IN_USE (
   echo     If this is a previous server instance, close it or change PORT in backend\.env.
 )
 
-REM Start the server in a new window
-echo [*] Starting server...
-start "AttendanceServer" cmd /c "cd /d %BACKEND% && npm run dev"
+REM (Server start moved below to use computed PORT)
 
 REM Create a desktop shortcut with a school building icon (shell32.dll resource)
 set SHORTCUT=%UserProfile%\Desktop\StartAttendanceServer.lnk
@@ -123,9 +124,21 @@ if not exist "%SHORTCUT%" (
   echo [+] Desktop shortcut created: StartAttendanceServer.lnk
 )
 
-REM Open admin UI in default browser
-echo [*] Opening Admin UI...
-start http://localhost:%PORT%/admin.html
+REM If port is busy, switch to next port automatically for this session
+for /f "tokens=5" %%P in ('netstat -ano ^| findstr :%PORT% ^| findstr LISTENING') do set PID_IN_USE=%%P
+if defined PID_IN_USE (
+  echo [!] Port %PORT% is in use by PID %PID_IN_USE%. Switching to next port...
+  set /a PORT=%PORT%+1
+)
+
+REM Start the server in a new window with session PORT
+echo [*] Starting server on PORT %PORT%...
+start "AttendanceServer" cmd /c "set PORT=%PORT% && cd /d %BACKEND% && npm run dev"
+
+REM Open home page in default browser (index.html) after a short delay
+echo [*] Opening Home page...
+timeout /t 2 /nobreak >nul
+start http://localhost:%PORT%/index.html
 echo [*] All set. Server is starting; if the page doesn't load immediately, wait a few seconds.
 exit /b 0
 

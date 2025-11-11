@@ -33,11 +33,15 @@ export function initDb() {
       late_minutes INTEGER DEFAULT 0,
       FOREIGN KEY(student_id) REFERENCES students(id)
     )`);
+    // Performance indexes for frequent queries
+    db.run(`CREATE INDEX IF NOT EXISTS idx_attendance_logs_student_ts ON attendance_logs(student_id, timestamp)`);
+    db.run(`CREATE INDEX IF NOT EXISTS idx_attendance_logs_ts ON attendance_logs(timestamp)`);
     db.run(`CREATE TABLE IF NOT EXISTS settings (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       key TEXT UNIQUE,
       value TEXT
     )`);
+    db.run(`CREATE INDEX IF NOT EXISTS idx_students_class_section ON students(class, section)`);
     db.run(`CREATE TABLE IF NOT EXISTS backups (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       date TEXT,

@@ -165,8 +165,21 @@ router.get('/today', async (req, res) => {
   try {
     const zone = process.env.TZ || 'local';
     const now = DateTime.now().setZone(zone);
-    // Ignore weekends (Friday/Saturday). Luxon weekday: Monday=1..Sunday=7
-    if (now.weekday === 5 || now.weekday === 6) {
+    // Weekly holidays and vacations from settings
+    let weekly: number[] = [];
+    let vacations: Array<{ from: string; to: string }> = [];
+    try {
+      const w = await get<{ value: string }>(`SELECT value FROM settings WHERE key='weeklyHolidays'`);
+      weekly = w?.value ? JSON.parse(w.value) : [];
+      const v = await get<{ value: string }>(`SELECT value FROM settings WHERE key='vacations'`);
+      vacations = v?.value ? JSON.parse(v.value) : [];
+    } catch {}
+    const isWeeklyHoliday = weekly.includes(now.weekday);
+    const isVacationDay = (() => {
+      const dayStr = now.toISO().slice(0,10);
+      return (vacations||[]).some(r => dayStr >= String(r.from||'') && dayStr <= String(r.to||''));
+    })();
+    if (isWeeklyHoliday || isVacationDay) {
       return res.json({ records: [], weekend: true });
     }
     const dayStart = now.startOf('day').toISO();

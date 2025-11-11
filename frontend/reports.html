@@ -24,19 +24,30 @@
   <main style="padding:16px">
     <section class="tab-section active" data-tab="student">
       <h2>تقرير طالب حسب الفترة</h2>
-      <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center">
+      <div class="form-row">
         <label>الطالب</label>
         <select id="filterStudent"><option value="">اختر الطالب</option></select>
         <label>السجل المدني</label>
         <input type="text" id="studentCivil" placeholder="أدخل رقم السجل المدني" />
+        <label><input type="checkbox" id="useHijri" /> استخدام التاريخ الهجري</label>
         <label>من</label>
         <input type="date" id="rangeFromDate" />
         <label>إلى</label>
         <input type="date" id="rangeToDate" />
+        <div id="hijriInputs" class="inline-group" style="display:none">
+          <label>من (هجري)</label>
+          <select id="rangeFromHijriYear" class="compact-select"></select>
+          <select id="rangeFromHijriMonth" class="compact-select"></select>
+          <select id="rangeFromHijriDay" class="compact-select"></select>
+          <label>إلى (هجري)</label>
+          <select id="rangeToHijriYear" class="compact-select"></select>
+          <select id="rangeToHijriMonth" class="compact-select"></select>
+          <select id="rangeToHijriDay" class="compact-select"></select>
+        </div>
         <label>الصف</label>
-        <input type="text" id="rangeClass" placeholder="مثال: الثالث متوسط" />
+        <select id="rangeClass" class="compact-select"><option value="">الكل</option></select>
         <label>الشعبة</label>
-        <input type="text" id="rangeSection" placeholder="مثال: أ" />
+        <select id="rangeSection" class="compact-select"><option value="">الكل</option></select>
         <label>تصفية</label>
         <input type="text" id="searchStudentRangeDate" placeholder="بحث بالتاريخ" />
         <select id="studentRangeStatusFilter">
@@ -47,7 +58,7 @@
         </select>
       </div>
       <!-- Cards for stats -->
-      <div id="studentStatsCards" style="display:grid; grid-template-columns: repeat(4,minmax(140px,1fr)); gap:8px; margin-top:10px">
+      <div id="studentStatsCards" class="cards-grid" style="margin-top:10px">
         <div class="card" id="cardTotalPresent" style="background:#e8f5e9; border:1px solid #c8e6c9; padding:10px; border-radius:8px"><div class="card-title">حضور</div><div class="card-value">0</div></div>
         <div class="card" id="cardTotalAbsent" style="background:#ffebee; border:1px solid #ffcdd2; padding:10px; border-radius:8px"><div class="card-title">غياب</div><div class="card-value">0</div></div>
         <div class="card" id="cardTotalLate" style="background:#fff8e1; border:1px solid #ffecb3; padding:10px; border-radius:8px"><div class="card-title">تأخر</div><div class="card-value">0</div></div>
@@ -77,15 +88,26 @@
     </section>
     <section class="tab-section" data-tab="class">
       <h2>تقرير صف حسب الفترة</h2>
-      <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center">
+      <div class="form-row">
         <label>الصف</label>
-        <input type="text" id="filterClass" placeholder="مثال: الثالث متوسط" />
+        <select id="filterClass" class="compact-select"><option value="">الكل</option></select>
         <label>الشعبة</label>
-        <input type="text" id="filterSection" placeholder="مثال: أ" />
+        <select id="filterSection" class="compact-select"><option value="">الكل</option></select>
+        <label><input type="checkbox" id="useHijriClass" /> استخدام التاريخ الهجري</label>
         <label>من</label>
         <input type="date" id="classFromDate" />
         <label>إلى</label>
         <input type="date" id="classToDate" />
+        <div id="hijriClassInputs" class="inline-group" style="display:none">
+          <label>من (هجري)</label>
+          <select id="classFromYearHijri" class="compact-select"></select>
+          <select id="classFromMonthHijri" class="compact-select"></select>
+          <select id="classFromDayHijri" class="compact-select"></select>
+          <label>إلى (هجري)</label>
+          <select id="classToYearHijri" class="compact-select"></select>
+          <select id="classToMonthHijri" class="compact-select"></select>
+          <select id="classToDayHijri" class="compact-select"></select>
+        </div>
         <label>بحث</label>
         <input type="text" id="searchClassName" placeholder="بحث بالاسم" />
         <label><input type="checkbox" id="classOnlyLate" /> المتأخرون فقط</label>

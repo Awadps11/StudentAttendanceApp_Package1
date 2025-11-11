@@ -24,11 +24,11 @@
   </div>
   <main style="padding:16px">
     <section class="tab-section active" data-tab="list">
-      <div style="margin:8px 0; display:flex; gap:8px; flex-wrap:wrap; align-items:center">
+      <div class="form-row" style="margin:8px 0">
         <label>بحث بالاسم</label>
         <input type="text" id="searchName" placeholder="اكتب جزءًا من الاسم" />
         <label>الصف</label>
-        <input type="text" id="searchClass" placeholder="مثال: الثالث متوسط" />
+        <select id="searchClass" class="compact-select"><option value="">الكل</option></select>
         <button id="resetSearch">إعادة تعيين</button>
       </div>
       <table id="studentsTable" border="1" style="width:100%; border-collapse:collapse">
@@ -46,12 +46,12 @@
       <span id="studentsStatus"></span>
     </section>
     <section class="tab-section" data-tab="add">
-      <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center">
+      <div class="form-row">
         <input type="text" id="newName" placeholder="الاسم" />
         <input type="text" id="newNational" placeholder="الهوية" />
         <input type="text" id="newGuardian" placeholder="هاتف ولي الأمر" />
-        <input type="text" id="newClass" placeholder="الصف" />
-        <input type="text" id="newSection" placeholder="الشعبة" />
+        <select id="newClass" class="compact-select"><option value="">اختر الصف</option></select>
+        <select id="newSection" class="compact-select"><option value="">اختر الشعبة</option></select>
         <input type="text" id="newDeviceId" placeholder="رقم المستخدم بالجهاز (اختياري)" />
         <button id="addStudent">إضافة طالب</button>
       </div>

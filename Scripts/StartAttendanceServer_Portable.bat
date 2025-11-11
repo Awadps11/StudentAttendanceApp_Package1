@@ -69,6 +69,7 @@ if not exist "%BACKEND%\.env" (
   if exist "%BACKEND%\.env.example" (
     copy /Y "%BACKEND%\.env.example" "%BACKEND%\.env" >nul
     echo [+] Created .env from .env.example
+    echo PDF_ENGINE=pdfkit>>"%BACKEND%\.env"
   ) else (
     >"%BACKEND%\.env" echo PORT=3000
     >>"%BACKEND%\.env" echo TZ=Asia/Riyadh
@@ -77,6 +78,7 @@ if not exist "%BACKEND%\.env" (
     >>"%BACKEND%\.env" echo ZK_MOCK=true
     >>"%BACKEND%\.env" echo ZK_PASSWORD=
     >>"%BACKEND%\.env" echo ZK_COMMKEY=
+    >>"%BACKEND%\.env" echo PDF_ENGINE=pdfkit
     echo [+] Created basic .env
   )
 )
@@ -116,9 +118,16 @@ if exist "%BACKEND%\node_modules\puppeteer" (
   )
 )
 
-REM ===== Start the server using portable Node =====
-echo [*] Starting server (portable Node)...
-start "AttendanceServerPortable" cmd /c "cd /d %BACKEND% && node dist/app.js"
+REM ===== If port is busy, switch to next port automatically for this session =====
+for /f "tokens=5" %%P in ('netstat -ano ^| findstr :%PORT% ^| findstr LISTENING') do set PID_IN_USE=%%P
+if defined PID_IN_USE (
+  echo [!] Port %PORT% is in use by PID %PID_IN_USE%. Switching to next port...
+  set /a PORT=%PORT%+1
+)
+
+REM ===== Start the server using portable Node with session PORT =====
+echo [*] Starting server (portable Node) on PORT %PORT%...
+start "AttendanceServerPortable" cmd /c "set PORT=%PORT% && cd /d %BACKEND% && node dist/app.js"
 
 REM ===== Create a desktop shortcut for portable launcher =====
 set SHORTCUT=%UserProfile%\Desktop\StartAttendanceServer_Portable.lnk
@@ -134,9 +143,9 @@ if not exist "%SHORTCUT%" (
   echo [+] Desktop shortcut created: StartAttendanceServer_Portable.lnk
 )
 
-REM ===== Open Admin UI in default browser =====
-echo [*] Opening Admin UI...
-start http://localhost:%PORT%/admin.html
+REM ===== Open Home page in default browser =====
+echo [*] Opening Home page...
+timeout /t 2 /nobreak >nul
+start http://localhost:%PORT%/index.html
 echo [*] All set. Server is starting; if the page doesn't load immediately, wait a few seconds.
 exit /b 0
-

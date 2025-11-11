@@ -31,6 +31,86 @@ document.querySelectorAll('.tab-button').forEach(btn => {
   });
 });
 
+// Hijri toggle UI
+document.getElementById('useHijri')?.addEventListener('change', () => {
+  const on = !!document.getElementById('useHijri')?.checked;
+  const hijri = document.getElementById('hijriInputs'); if (hijri) hijri.style.display = on ? 'flex' : 'none';
+  document.getElementById('rangeFromDate')?.toggleAttribute('disabled', on);
+  document.getElementById('rangeToDate')?.toggleAttribute('disabled', on);
+  if (on) { ensureHijriSelectsPopulated('rangeFromHijri', 'rangeToHijri'); }
+});
+
+async function hijriToGregorian(hijriStr) {
+  // Expects YYYY-MM-DD (Hijri). Uses Aladhan API hToG.
+  try {
+    const [y,m,d] = String(hijriStr||'').split('-').map(s => s.trim());
+    if (!y || !m || !d) return '';
+    const url = `https://api.aladhan.com/v1/hToG/${d}-${m}-${y}`;
+    const r = await fetch(url);
+    const j = await r.json();
+    const g = j?.data?.gregorian?.date; // format: DD-MM-YYYY
+    if (!g) return '';
+    const [dd,mm,yy] = String(g).split('-');
+    return `${yy}-${mm}-${dd}`; // ISO-like YYYY-MM-DD
+  } catch { return ''; }
+}
+
+function ensureHijriSelectsPopulated(prefixFrom, prefixTo) {
+  try {
+    const years = []; const currentYear = 1445; for (let y = currentYear - 10; y <= currentYear + 10; y++) years.push(y);
+    const months = [
+      { v: 1, n: 'محرم' }, { v: 2, n: 'صفر' }, { v: 3, n: 'ربيع الأول' }, { v: 4, n: 'ربيع الآخر' },
+      { v: 5, n: 'جمادى الأولى' }, { v: 6, n: 'جمادى الآخرة' }, { v: 7, n: 'رجب' }, { v: 8, n: 'شعبان' },
+      { v: 9, n: 'رمضان' }, { v: 10, n: 'شوال' }, { v: 11, n: 'ذو القعدة' }, { v: 12, n: 'ذو الحجة' }
+    ];
+    const days = Array.from({length:30}, (_,i) => i+1);
+    const fill = (id, values, toText) => { const el = document.getElementById(id); if (!el) return; if (el.options.length > 0) return; el.innerHTML = ''; values.forEach(v => { const o = document.createElement('option'); o.value = String(v.v ?? v); o.textContent = toText ? toText(v) : String(v); el.appendChild(o); }); };
+    fill(`${prefixFrom}Year`, years, v => String(v));
+    fill(`${prefixFrom}Month`, months, v => v.n);
+    fill(`${prefixFrom}Day`, days, v => String(v).padStart(2,'0'));
+    fill(`${prefixTo}Year`, years, v => String(v));
+    fill(`${prefixTo}Month`, months, v => v.n);
+    fill(`${prefixTo}Day`, days, v => String(v).padStart(2,'0'));
+  } catch {}
+}
+
+function buildHijriISO(fromPrefix, toPrefix) {
+  const fy = document.getElementById(`${fromPrefix}Year`)?.value || '';
+  const fm = document.getElementById(`${fromPrefix}Month`)?.value || '';
+  const fd = document.getElementById(`${fromPrefix}Day`)?.value || '';
+  const ty = document.getElementById(`${toPrefix}Year`)?.value || '';
+  const tm = document.getElementById(`${toPrefix}Month`)?.value || '';
+  const td = document.getElementById(`${toPrefix}Day`)?.value || '';
+  const from = fy && fm && fd ? `${fy}-${String(fm).padStart(2,'0')}-${String(fd).padStart(2,'0')}` : '';
+  const to = ty && tm && td ? `${ty}-${String(tm).padStart(2,'0')}-${String(td).padStart(2,'0')}` : '';
+  return { from, to };
+}
+
+function sortClassesArabic(classes) {
+  const preferredOrder = [
+    'الأول متوسط','الثاني متوسط','الثالث متوسط',
+    'الأول ثانوي','الثاني ثانوي','الثالث ثانوي'
+  ];
+  const uniq = Array.from(new Set((classes||[]).map(c => String(c||'').trim()).filter(Boolean)));
+  const inOrder = preferredOrder.filter(c => uniq.includes(c));
+  const others = uniq.filter(c => !preferredOrder.includes(c)).sort((a,b) => a.localeCompare(b));
+  return [...inOrder, ...others];
+}
+
+async function populateClassAndSectionFilters() {
+  try {
+    const r = await getJSON('/api/students');
+    const students = r.students || [];
+    const classes = sortClassesArabic(students.map(s => s.class));
+    const sections = Array.from(new Set(students.map(s => String(s.section||'').trim()).filter(Boolean))).sort((a,b)=>a.localeCompare(b));
+    const fillSel = (id, arr) => { const el = document.getElementById(id); if (!el) return; const prev = el.value || ''; el.innerHTML = ''; const def = document.createElement('option'); def.value = ''; def.textContent = 'الكل'; el.appendChild(def); arr.forEach(v => { const o = document.createElement('option'); o.value = v; o.textContent = v; el.appendChild(o); }); if (prev && arr.includes(prev)) el.value = prev; };
+    fillSel('rangeClass', classes);
+    fillSel('filterClass', classes);
+    fillSel('rangeSection', sections);
+    fillSel('filterSection', sections);
+  } catch {}
+}
+
 // Populate students for student report
 async function loadStudentsForReports() {
   try {
@@ -60,8 +140,18 @@ document.getElementById('viewStudentRange')?.addEventListener('click', async () 
     } catch {}
   }
   if (!studentId) { alert('اختر الطالب أولاً أو أدخل السجل المدني'); return; }
-  const from = document.getElementById('rangeFromDate')?.value || '';
-  const to = document.getElementById('rangeToDate')?.value || '';
+  const useHijri = !!document.getElementById('useHijri')?.checked;
+  let from = document.getElementById('rangeFromDate')?.value || '';
+  let to = document.getElementById('rangeToDate')?.value || '';
+  if (useHijri) {
+    const h = buildHijriISO('rangeFromHijri','rangeToHijri');
+    const gf = await hijriToGregorian(h.from);
+    const gt = await hijriToGregorian(h.to);
+    from = gf || '';
+    to = gt || '';
+    if (!from && h.from) { alert('تعذر تحويل تاريخ البداية (هجري) إلى ميلادي'); return; }
+    if (!to && h.to) { alert('تعذر تحويل تاريخ النهاية (هجري) إلى ميلادي'); return; }
+  }
   const params = new URLSearchParams(); params.set('student_id', studentId); if (from) params.set('from', from); if (to) params.set('to', to);
   try {
     const r = await getJSON(`/api/reports/student?${params.toString()}`);
@@ -129,14 +219,24 @@ function filterStudentRangeRecords(all) {
 
 document.getElementById('searchStudentRangeDate')?.addEventListener('input', () => renderStudentRangeTable());
 document.getElementById('studentRangeStatusFilter')?.addEventListener('change', () => renderStudentRangeTable());
-document.getElementById('rangeClass')?.addEventListener('input', () => loadStudentsForReports());
-document.getElementById('rangeSection')?.addEventListener('input', () => loadStudentsForReports());
+document.getElementById('rangeClass')?.addEventListener('change', () => loadStudentsForReports());
+document.getElementById('rangeSection')?.addEventListener('change', () => loadStudentsForReports());
 
 async function exportStudentRange(format) {
   const studentId = document.getElementById('filterStudent')?.value || '';
   if (!studentId) { alert('اختر الطالب أولاً'); return; }
-  const from = document.getElementById('rangeFromDate')?.value || '';
-  const to = document.getElementById('rangeToDate')?.value || '';
+  let from = document.getElementById('rangeFromDate')?.value || '';
+  let to = document.getElementById('rangeToDate')?.value || '';
+  const useHijri = !!document.getElementById('useHijri')?.checked;
+  if (useHijri) {
+    const h = buildHijriISO('rangeFromHijri','rangeToHijri');
+    const gf = await hijriToGregorian(h.from);
+    const gt = await hijriToGregorian(h.to);
+    from = gf || '';
+    to = gt || '';
+    if (!from && h.from) { alert('تعذر تحويل تاريخ البداية (هجري) إلى ميلادي'); return; }
+    if (!to && h.to) { alert('تعذر تحويل تاريخ النهاية (هجري) إلى ميلادي'); return; }
+  }
   const lang = localStorage.getItem('lang') || 'ar';
   const params = new URLSearchParams({ format, lang, student_id: String(studentId) }); if (from) params.set('from', from); if (to) params.set('to', to);
   const r = await getJSON(`/api/reports/student/export?${params.toString()}`);
@@ -163,8 +263,19 @@ document.getElementById('exportStudentsFile')?.addEventListener('click', async (
 document.getElementById('viewClassRange')?.addEventListener('click', async () => {
   const cls = document.getElementById('filterClass')?.value.trim(); if (!cls) { alert('أدخل الصف أولاً'); return; }
   const section = document.getElementById('filterSection')?.value.trim();
-  const from = document.getElementById('classFromDate')?.value || '';
-  const to = document.getElementById('classToDate')?.value || '';
+  let from = document.getElementById('classFromDate')?.value || '';
+  let to = document.getElementById('classToDate')?.value || '';
+  const useHijriClass = !!document.getElementById('useHijriClass')?.checked;
+  if (useHijriClass) {
+    ensureHijriSelectsPopulated('classFromHijri', 'classToHijri');
+    const h = buildHijriISO('classFromHijri', 'classToHijri');
+    const gf = await hijriToGregorian(h.from);
+    const gt = await hijriToGregorian(h.to);
+    from = gf || '';
+    to = gt || '';
+    if (!from && h.from) { alert('تعذر تحويل تاريخ البداية (هجري) إلى ميلادي'); return; }
+    if (!to && h.to) { alert('تعذر تحويل تاريخ النهاية (هجري) إلى ميلادي'); return; }
+  }
   const params = new URLSearchParams({ class: cls }); if (section) params.set('section', section); if (from) params.set('from', from); if (to) params.set('to', to);
   try {
     const r = await getJSON(`/api/reports/class?${params.toString()}`);
@@ -204,8 +315,19 @@ document.getElementById('classOnlyLate')?.addEventListener('change', () => rende
 async function exportClassRange(format) {
   const cls = document.getElementById('filterClass')?.value.trim(); if (!cls) { alert('أدخل الصف أولاً'); return; }
   const section = document.getElementById('filterSection')?.value.trim();
-  const from = document.getElementById('classFromDate')?.value || '';
-  const to = document.getElementById('classToDate')?.value || '';
+  let from = document.getElementById('classFromDate')?.value || '';
+  let to = document.getElementById('classToDate')?.value || '';
+  const useHijriClass = !!document.getElementById('useHijriClass')?.checked;
+  if (useHijriClass) {
+    ensureHijriSelectsPopulated('classFromHijri', 'classToHijri');
+    const h = buildHijriISO('classFromHijri', 'classToHijri');
+    const gf = await hijriToGregorian(h.from);
+    const gt = await hijriToGregorian(h.to);
+    from = gf || '';
+    to = gt || '';
+    if (!from && h.from) { alert('تعذر تحويل تاريخ البداية (هجري) إلى ميلادي'); return; }
+    if (!to && h.to) { alert('تعذر تحويل تاريخ النهاية (هجري) إلى ميلادي'); return; }
+  }
   const lang = localStorage.getItem('lang') || 'ar';
   const params = new URLSearchParams({ class: cls, format, lang }); if (section) params.set('section', section); if (from) params.set('from', from); if (to) params.set('to', to);
   const r = await getJSON(`/api/reports/class/export?${params.toString()}`);
@@ -215,7 +337,15 @@ async function exportClassRange(format) {
 document.getElementById('exportClassExcel')?.addEventListener('click', () => exportClassRange('excel'));
 document.getElementById('exportClassPdf')?.addEventListener('click', () => exportClassRange('pdf'));
 
-(async function init(){ await loadStudentsForReports(); })();
+(document.getElementById('useHijriClass'))?.addEventListener('change', () => {
+  const on = !!document.getElementById('useHijriClass')?.checked;
+  const hijri = document.getElementById('hijriClassInputs'); if (hijri) hijri.style.display = on ? 'flex' : 'none';
+  document.getElementById('classFromDate')?.toggleAttribute('disabled', on);
+  document.getElementById('classToDate')?.toggleAttribute('disabled', on);
+  if (on) ensureHijriSelectsPopulated('classFromHijri', 'classToHijri');
+});
+
+(async function init(){ await populateClassAndSectionFilters(); ensureHijriSelectsPopulated('rangeFromHijri','rangeToHijri'); await loadStudentsForReports(); })();
 
 // Utilities
 function arabicDayName(dateStr) {

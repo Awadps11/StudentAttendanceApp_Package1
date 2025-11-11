@@ -4,6 +4,17 @@ async function initSettings() {
   const s = await getJSON('/api/settings');
   document.getElementById('scheduleStart').value = s.scheduleStart || '07:00';
   const ac = document.getElementById('absentCutoff'); if (ac) ac.value = s.absentCutoff || '08:30';
+  // Weekly holidays
+  try {
+    const weeks = Array.isArray(s.weeklyHolidays) ? s.weeklyHolidays.map(Number) : [];
+    document.querySelectorAll('#weeklyHolidaysArea input[type="checkbox"]').forEach(ch => {
+      const wd = Number(ch.getAttribute('data-weekday'));
+      ch.checked = weeks.includes(wd);
+    });
+  } catch {}
+  // Vacations list
+  window._vacations = Array.isArray(s.vacations) ? s.vacations.slice() : [];
+  renderVacations();
   // Load fonts list
   let fonts = [];
   try { const fr = await getJSON('/api/assets/fonts'); fonts = fr.fonts || []; } catch {}
@@ -35,11 +46,106 @@ async function initSettings() {
   });
 }
 
+// --- Hijri helpers for Admin vacations ---
+async function hijriToGregorian(hijriStr) {
+  try {
+    const [y,m,d] = String(hijriStr||'').split('-').map(s => s.trim());
+    if (!y || !m || !d) return '';
+    const url = `https://api.aladhan.com/v1/hToG/${d}-${m}-${y}`;
+    const r = await fetch(url);
+    const j = await r.json();
+    const g = j?.data?.gregorian?.date; // DD-MM-YYYY
+    if (!g) return '';
+    const [dd,mm,yy] = String(g).split('-');
+    return `${yy}-${mm}-${dd}`;
+  } catch { return ''; }
+}
+
+function ensureHijriSelectsPopulated(prefixFrom, prefixTo) {
+  try {
+    const years = []; const currentYear = 1445; for (let y = currentYear - 10; y <= currentYear + 10; y++) years.push(y);
+    const months = [
+      { v: 1, n: 'محرم' }, { v: 2, n: 'صفر' }, { v: 3, n: 'ربيع الأول' }, { v: 4, n: 'ربيع الآخر' },
+      { v: 5, n: 'جمادى الأولى' }, { v: 6, n: 'جمادى الآخرة' }, { v: 7, n: 'رجب' }, { v: 8, n: 'شعبان' },
+      { v: 9, n: 'رمضان' }, { v: 10, n: 'شوال' }, { v: 11, n: 'ذو القعدة' }, { v: 12, n: 'ذو الحجة' }
+    ];
+    const days = Array.from({length:30}, (_,i) => i+1);
+    const fill = (id, values, toText) => { const el = document.getElementById(id); if (!el) return; if (el.options.length > 0) return; el.innerHTML = ''; values.forEach(v => { const o = document.createElement('option'); o.value = String(v.v ?? v); o.textContent = toText ? toText(v) : String(v); el.appendChild(o); }); };
+    fill(`${prefixFrom}Year`, years, v => String(v));
+    fill(`${prefixFrom}Month`, months, v => v.n);
+    fill(`${prefixFrom}Day`, days, v => String(v).padStart(2,'0'));
+    fill(`${prefixTo}Year`, years, v => String(v));
+    fill(`${prefixTo}Month`, months, v => v.n);
+    fill(`${prefixTo}Day`, days, v => String(v).padStart(2,'0'));
+  } catch {}
+}
+
+document.getElementById('useHijriVac')?.addEventListener('change', () => {
+  const on = !!document.getElementById('useHijriVac')?.checked;
+  const hijri = document.getElementById('vacHijriInputs'); if (hijri) hijri.style.display = on ? 'flex' : 'none';
+  document.getElementById('vacFrom')?.toggleAttribute('disabled', on);
+  document.getElementById('vacTo')?.toggleAttribute('disabled', on);
+  if (on) { ensureHijriSelectsPopulated('vacFromHijri','vacToHijri'); }
+});
+
 document.getElementById('saveSchedule')?.addEventListener('click', async () => {
   const v = document.getElementById('scheduleStart').value;
   const cutoff = document.getElementById('absentCutoff')?.value || '08:30';
   const r = await getJSON('/api/settings', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ scheduleStart: v, absentCutoff: cutoff }) });
   alert(msg(r.ok ? 'saveOk' : 'saveErr'));
+});
+
+document.getElementById('saveWeeklyHolidays')?.addEventListener('click', async () => {
+  try {
+    const days = Array.from(document.querySelectorAll('#weeklyHolidaysArea input[type="checkbox"]'))
+      .filter(ch => ch.checked)
+      .map(ch => Number(ch.getAttribute('data-weekday')));
+    const r = await getJSON('/api/settings', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ weeklyHolidays: days }) });
+    alert(r.ok ? 'تم حفظ العطلة الأسبوعية' : 'فشل الحفظ');
+  } catch { alert('فشل الحفظ'); }
+});
+
+document.getElementById('addVacation')?.addEventListener('click', async () => {
+  const useHijri = !!document.getElementById('useHijriVac')?.checked;
+  let from = document.getElementById('vacFrom')?.value || '';
+  let to = document.getElementById('vacTo')?.value || '';
+  if (useHijri) {
+    const fy = document.getElementById('vacFromHijriYear')?.value || '';
+    const fm = document.getElementById('vacFromHijriMonth')?.value || '';
+    const fd = document.getElementById('vacFromHijriDay')?.value || '';
+    const ty = document.getElementById('vacToHijriYear')?.value || '';
+    const tm = document.getElementById('vacToHijriMonth')?.value || '';
+    const td = document.getElementById('vacToHijriDay')?.value || '';
+    const hFrom = fy && fm && fd ? `${fy}-${String(fm).padStart(2,'0')}-${String(fd).padStart(2,'0')}` : '';
+    const hTo = ty && tm && td ? `${ty}-${String(tm).padStart(2,'0')}-${String(td).padStart(2,'0')}` : '';
+    const gFrom = await hijriToGregorian(hFrom);
+    const gTo = await hijriToGregorian(hTo);
+    from = gFrom || '';
+    to = gTo || '';
+    if (!from && hFrom) { alert('تعذر تحويل تاريخ البداية (هجري) إلى ميلادي'); return; }
+    if (!to && hTo) { alert('تعذر تحويل تاريخ النهاية (هجري) إلى ميلادي'); return; }
+  }
+  if (!from || !to) { alert('أدخل تاريخي البداية والنهاية'); return; }
+  window._vacations = window._vacations || [];
+  window._vacations.push({ from, to });
+  const vf = document.getElementById('vacFrom'); if (vf) vf.value = '';
+  const vt = document.getElementById('vacTo'); if (vt) vt.value = '';
+  renderVacations();
+});
+
+document.getElementById('saveVacations')?.addEventListener('click', async () => {
+  try {
+    const r = await getJSON('/api/settings', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ vacations: window._vacations || [] }) });
+    document.getElementById('vacStatus').textContent = r.ok ? 'تم حفظ فترات الإجازات' : 'فشل حفظ الفترات';
+  } catch { document.getElementById('vacStatus').textContent = 'فشل حفظ الفترات'; }
+});
+
+document.getElementById('applyVacations')?.addEventListener('click', async () => {
+  if (!confirm('سيتم حذف سجلات الحضور ضمن فترات الإجازات المحددة. هل أنت متأكد؟')) return;
+  try {
+    const r = await getJSON('/api/settings', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ vacations: window._vacations || [], applyVacations: true }) });
+    document.getElementById('vacStatus').textContent = r.ok ? 'تم تطبيق الإجازات وحذف السجلات' : 'فشل التطبيق';
+  } catch { document.getElementById('vacStatus').textContent = 'فشل التطبيق'; }
 });
 
 document.getElementById('importStudents')?.addEventListener('click', async () => {
@@ -104,7 +210,43 @@ document.getElementById('runBackup')?.addEventListener('click', async () => {
   alert(r.ok ? msg('backupOk', { p: r.path }) : msg('backupErr', { e: r.error }));
 });
 
-(async function init(){ await initSettings(); })();
+// Wire data wipe buttons with confirmations and backend calls
+document.getElementById('wipeAllBtn')?.addEventListener('click', async () => {
+  const required = 'DELETE ALL';
+  const input = prompt(msg('wipeConfirmAll'));
+  if (!input) return;
+  if (input.trim() !== required) { alert(msg('wipeConfirmMismatch', { required })); return; }
+  const r = await getJSON('/api/admin/wipe', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ scope: 'all', confirm: input.trim() }) });
+  const s = document.getElementById('wipeStatus'); if (s) s.textContent = r.ok ? msg('wipeOk') : msg('wipeErr', { e: r.error });
+});
+
+document.getElementById('wipeAttendanceBtn')?.addEventListener('click', async () => {
+  const required = 'ATTENDANCE';
+  const input = prompt(msg('wipeConfirmAttendance'));
+  if (!input) return;
+  if (input.trim() !== required) { alert(msg('wipeConfirmMismatch', { required })); return; }
+  const r = await getJSON('/api/admin/wipe', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ scope: 'attendance', confirm: input.trim() }) });
+  const s = document.getElementById('wipeStatus'); if (s) s.textContent = r.ok ? msg('wipeOk') : msg('wipeErr', { e: r.error });
+});
+
+document.getElementById('wipeStudentsBtn')?.addEventListener('click', async () => {
+  const required = 'STUDENTS';
+  const input = prompt(msg('wipeConfirmStudents'));
+  if (!input) return;
+  if (input.trim() !== required) { alert(msg('wipeConfirmMismatch', { required })); return; }
+  const r = await getJSON('/api/admin/wipe', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ scope: 'students', confirm: input.trim() }) });
+  const s = document.getElementById('wipeStatus'); if (s) s.textContent = r.ok ? msg('wipeOk') : msg('wipeErr', { e: r.error });
+});
+
+(async function init(){
+  await initSettings();
+  // Initialize Hijri inputs visibility and options on load
+  ensureHijriSelectsPopulated('vacFromHijri','vacToHijri');
+  const on = !!document.getElementById('useHijriVac')?.checked;
+  const hijri = document.getElementById('vacHijriInputs'); if (hijri) hijri.style.display = on ? 'flex' : 'none';
+  document.getElementById('vacFrom')?.toggleAttribute('disabled', on);
+  document.getElementById('vacTo')?.toggleAttribute('disabled', on);
+})();
 
 function ensureFontFace(family, file) {
   if (!family || !file) return;
@@ -121,6 +263,20 @@ function applyUiFontFromSetting(file) {
   const family = file.replace(/\.ttf$/i,'').replace(/\.woff2?$/i,'').replace(/-Regular/i,'');
   ensureFontFace(family, file);
   document.documentElement.style.setProperty('--font-ui', `'${family}'`);
+}
+
+function renderVacations() {
+  const cont = document.getElementById('vacationsList'); if (!cont) return;
+  cont.innerHTML = '';
+  (window._vacations || []).forEach((v, idx) => {
+    const row = document.createElement('div');
+    row.style.display = 'flex'; row.style.gap = '8px'; row.style.alignItems = 'center'; row.style.margin = '6px 0';
+    const span = document.createElement('span'); span.textContent = `من ${v.from} إلى ${v.to}`;
+    const del = document.createElement('button'); del.textContent = 'حذف';
+    del.addEventListener('click', () => { window._vacations.splice(idx, 1); renderVacations(); });
+    row.appendChild(span); row.appendChild(del);
+    cont.appendChild(row);
+  });
 }
 
 // Fonts subtab switching and text size preview
@@ -156,9 +312,15 @@ const i18n = {
     addStudent: 'إضافة طالب',
     secImport: 'استيراد الطلاب', importNote: 'سيتم الاستيراد من ملف SampleStudents.xlsx في الحزمة.', importBtn: 'استيراد',
     secDevice: 'جلب سجلات الجهاز', lblIp: 'IP الجهاز', lblPort: 'Port', lblMock: 'وضع المحاكاة', saveDevice: 'حفظ الإعدادات', testConnect: 'اختبار الاتصال', ingest: 'جلب وتخزين الحضور',
+    diagnose: 'تشخيص الاتصال',
     secManualImport: 'استيراد ملف الحضور يدوياً', lblManualFile: 'مسار الملف (attlog.dat)', manualImportBtn: 'استيراد', manualImportNote: 'إن لم تُحدد مساراً، سيتم استخدام الملف الموجود في الجذر باسم BRC7222260114_attlog.dat',
     secReports: 'التقارير والنسخ الاحتياطي', lblClass: 'الصف', lblSection: 'الشعبة', lblDate: 'التاريخ', exportExcel: 'تصدير تقرير يومي (Excel)', exportPdf: 'تصدير تقرير يومي (PDF)', runBackup: 'تشغيل النسخ الاحتياطي',
-    secBackups: 'النسخ المتوفرة والاسترجاع', openFile: 'فتح الملف', restore: 'استرجاع',
+    secBackups: 'النسخ الاحتياطي والاسترجاع', secBackupsList: 'النسخ المتوفرة والاسترجاع', openFile: 'فتح الملف', restore: 'استرجاع',
+    lblVacHijri: 'استخدام التاريخ الهجري',
+    secDataMgmt: 'إدارة البيانات الحساسة',
+    lblWipeAll: 'حذف جميع البيانات (طلاب + سجلات + حركات)',
+    lblWipeAtt: 'حذف سجلات الحضور والحركات',
+    lblWipeStu: 'حذف الطلاب بالكامل',
     msg: {
       saveOk: 'تم الحفظ', saveErr: 'حدث خطأ',
       importing: 'جاري الاستيراد...', importOk: (p) => `تم الاستيراد: ${p.n}`, importErr: (p) => `خطأ: ${p.e}`,
@@ -173,7 +335,13 @@ const i18n = {
       listLoadErr: 'تعذر تحميل قائمة النسخ',
       studentsLoadErr: 'تعذر تحميل قائمة الطلاب',
       studentAddOk: 'تمت إضافة الطالب', studentAddErr: (p) => `خطأ: ${p.e}`,
-      zkConnectOk: 'تم الاتصال بالجهاز بنجاح', zkConnectErr: (p) => `فشل الاتصال: ${p.e}`
+      zkConnectOk: 'تم الاتصال بالجهاز بنجاح', zkConnectErr: (p) => `فشل الاتصال: ${p.e}`,
+      wipeConfirmAll: 'للتأكيد، اكتب: DELETE ALL',
+      wipeConfirmAttendance: 'للتأكيد، اكتب: ATTENDANCE',
+      wipeConfirmStudents: 'للتأكيد، اكتب: STUDENTS',
+      wipeConfirmMismatch: (p) => `يجب كتابة النص المطلوب بالضبط: ${p.required}`,
+      wipeOk: 'تم الحذف بنجاح',
+      wipeErr: (p) => `خطأ: ${p.e}`
     }
   },
   en: {
@@ -185,9 +353,15 @@ const i18n = {
     addStudent: 'Add Student',
     secImport: 'Import Students', importNote: 'Importing from SampleStudents.xlsx included in the package.', importBtn: 'Import',
     secDevice: 'Fetch Device Logs', lblIp: 'Device IP', lblPort: 'Port', lblMock: 'Mock Mode', saveDevice: 'Save Settings', testConnect: 'Test Connection', ingest: 'Fetch & Store Attendance',
+    diagnose: 'Diagnose Connection',
     secManualImport: 'Manual attlog import', lblManualFile: 'File path (attlog.dat)', manualImportBtn: 'Import', manualImportNote: 'If not specified, the root file BRC7222260114_attlog.dat will be used.',
     secReports: 'Reports & Backups', lblClass: 'Class', lblSection: 'Section', lblDate: 'Date', exportExcel: 'Export Daily (Excel)', exportPdf: 'Export Daily (PDF)', runBackup: 'Run Backup',
-    secBackups: 'Available Backups & Restore', openFile: 'Open File', restore: 'Restore',
+    secBackups: 'Backup & Restore', secBackupsList: 'Available Backups & Restore', openFile: 'Open File', restore: 'Restore',
+    lblVacHijri: 'Use Hijri date',
+    secDataMgmt: 'Sensitive Data Management',
+    lblWipeAll: 'Wipe all data (students + logs + movements)',
+    lblWipeAtt: 'Wipe attendance logs and device movements',
+    lblWipeStu: 'Wipe all students',
     msg: {
       saveOk: 'Saved', saveErr: 'An error occurred',
       importing: 'Importing...', importOk: (p) => `Imported: ${p.n}`, importErr: (p) => `Error: ${p.e}`,
@@ -202,7 +376,13 @@ const i18n = {
       listLoadErr: 'Failed to load backup list',
       studentsLoadErr: 'Failed to load students list',
       studentAddOk: 'Student added successfully', studentAddErr: (p) => `Error: ${p.e}`,
-      zkConnectOk: 'Device connected successfully', zkConnectErr: (p) => `Connection failed: ${p.e}`
+      zkConnectOk: 'Device connected successfully', zkConnectErr: (p) => `Connection failed: ${p.e}`,
+      wipeConfirmAll: 'To confirm, type: DELETE ALL',
+      wipeConfirmAttendance: 'To confirm, type: ATTENDANCE',
+      wipeConfirmStudents: 'To confirm, type: STUDENTS',
+      wipeConfirmMismatch: (p) => `You must type exactly: ${p.required}`,
+      wipeOk: 'Deletion completed successfully',
+      wipeErr: (p) => `Error: ${p.e}`
     }
   }
 };
@@ -239,6 +419,7 @@ function applyLang(lang) {
   setText('lbl-mock', t.lblMock);
   setText('saveZk', t.saveDevice);
   setText('testConnect', t.testConnect);
+  setText('diagnoseBtn', t.diagnose || 'تشخيص الاتصال');
   setText('ingest', t.ingest);
   setText('lbl-manual-file', t.lblManualFile);
   setText('manualImportBtn', t.manualImportBtn);
@@ -252,6 +433,12 @@ function applyLang(lang) {
   setText('exportPdf', t.exportPdf);
   setText('runBackup', t.runBackup);
   setText('sec-backups', t.secBackups);
+  setText('sec-backups-list', t.secBackupsList || t.secBackups);
+  setText('sec-data-mgmt', t.secDataMgmt || (lang==='ar' ? 'إدارة البيانات الحساسة' : 'Sensitive Data Management'));
+  setText('lbl-wipe-all', t.lblWipeAll || (lang==='ar' ? 'حذف جميع البيانات (طلاب + سجلات + حركات)' : 'Wipe all data (students + logs + device movements)'));
+  setText('lbl-wipe-att', t.lblWipeAtt || (lang==='ar' ? 'حذف سجلات الحضور والحركات' : 'Wipe attendance logs and device movements'));
+  setText('lbl-wipe-stu', t.lblWipeStu || (lang==='ar' ? 'حذف الطلاب بالكامل' : 'Wipe all students'));
+  setText('lbl-vac-hijri', t.lblVacHijri);
   document.querySelectorAll('#backupsList a').forEach(a => a.textContent = t.openFile);
   document.querySelectorAll('#backupsList button').forEach(b => b.textContent = t.restore);
 }
@@ -432,6 +619,73 @@ document.getElementById('testConnect')?.addEventListener('click', async () => {
     alert(msg('zkConnectErr', { e: String(e) }));
   }
 });
+
+document.getElementById('diagnoseBtn')?.addEventListener('click', async () => {
+  try {
+    const ip = (document.getElementById('zkIp')?.value || '').trim();
+    const portVal = Number(document.getElementById('zkPort')?.value || '0');
+    const useSdk = !!document.getElementById('zkUseSdk')?.checked;
+    const mockMode = !!document.getElementById('zkMock')?.checked;
+    const params = new URLSearchParams();
+    if (ip) params.set('ip', ip);
+    if (portVal) params.set('port', String(portVal));
+    params.set('useSdk', String(useSdk));
+    params.set('mock', String(mockMode));
+    const area = document.getElementById('diagnoseArea');
+    const lang = localStorage.getItem('lang') || 'ar';
+    if (area) area.textContent = lang === 'ar' ? 'جاري التشخيص...' : 'Diagnosing...';
+    const r = await getJSON(`/api/zk/diagnose?${params.toString()}`);
+    renderDiagnose(r);
+  } catch (e) {
+    const area = document.getElementById('diagnoseArea');
+    if (area) area.textContent = msg('exportErr', { e: String(e) });
+  }
+});
+
+function renderDiagnose(report) {
+  const area = document.getElementById('diagnoseArea');
+  if (!area) return;
+  const lang = localStorage.getItem('lang') || 'ar';
+  area.innerHTML = '';
+  const title = document.createElement('div');
+  title.textContent = lang === 'ar' ? 'نتيجة التشخيص' : 'Diagnosis Result';
+  title.style.fontWeight = 'bold';
+  area.appendChild(title);
+
+  const summary = document.createElement('div');
+  summary.style.margin = '6px 0';
+  const okText = report.finalOk ? (lang === 'ar' ? 'نجح الاتصال' : 'Connection OK') : (lang === 'ar' ? 'فشل الاتصال' : 'Connection failed');
+  summary.textContent = `${okText} — ${report.ip}:${report.port} — ${lang==='ar'?'الرسالة':'Message'}: ${report.message}`;
+  summary.style.color = report.finalOk ? 'green' : 'red';
+  area.appendChild(summary);
+
+  const cfg = document.createElement('div');
+  cfg.textContent = `${lang==='ar'?'المحاولات':'Retries'}: ${report.retries} | ${lang==='ar'?'المهلة':'Timeout'}: ${report.timeoutMs}ms | ${lang==='ar'?'البروتوكول':'Protocol'}: ${report.protocol}`;
+  area.appendChild(cfg);
+
+  const table = document.createElement('table');
+  table.style.width = '100%'; table.style.borderCollapse = 'collapse'; table.border = '1';
+  const thead = document.createElement('thead'); const htr = document.createElement('tr');
+  const headers = [
+    lang==='ar'? 'المحاولة' : 'Attempt',
+    lang==='ar'? 'النتيجة' : 'Result',
+    lang==='ar'? 'طريقة' : 'Via',
+    lang==='ar'? 'المدة (ملّي)' : 'Duration (ms)',
+    lang==='ar'? 'رمز الخطأ' : 'Error Code',
+    lang==='ar'? 'الخطأ' : 'Error'
+  ];
+  headers.forEach(text => { const th = document.createElement('th'); th.textContent = text; htr.appendChild(th); });
+  thead.appendChild(htr); table.appendChild(thead);
+  const tbody = document.createElement('tbody');
+  (report.attempts || []).forEach((a, i) => {
+    const tr = document.createElement('tr');
+    const vals = [i+1, a.ok ? (lang==='ar'?'نجاح':'OK') : (lang==='ar'?'فشل':'Fail'), a.via, a.durationMs, a.code||'', a.error||''];
+    vals.forEach(v => { const td = document.createElement('td'); td.textContent = String(v); tr.appendChild(td); });
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  area.appendChild(table);
+}
 
 (async function initBackups(){ await loadBackups(); })();
 (async function initStudents(){ await loadStudents(); })();

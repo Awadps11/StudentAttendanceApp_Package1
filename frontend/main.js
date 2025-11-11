@@ -112,7 +112,14 @@ document.getElementById('toggle-lang')?.addEventListener('click', () => {
 })();
 
 function populateFilters() {
-  const classes = Array.from(new Set(allRecords.map(r => r.class).filter(Boolean)));
+  const rawClasses = Array.from(new Set(allRecords.map(r => r.class).filter(Boolean)));
+  const preferredOrder = [
+    'الأول متوسط','الثاني متوسط','الثالث متوسط',
+    'الأول ثانوي','الثاني ثانوي','الثالث ثانوي'
+  ];
+  const inOrder = preferredOrder.filter(c => rawClasses.includes(c));
+  const others = rawClasses.filter(c => !preferredOrder.includes(c)).sort((a,b) => a.localeCompare(b));
+  const classes = [...inOrder, ...others];
   const sections = Array.from(new Set(allRecords.map(r => r.section).filter(Boolean)));
   const classSel = document.getElementById('classFilter');
   const sectionSel = document.getElementById('sectionFilter');
